@@ -8,7 +8,15 @@ copyright:           "Copyright (c) 2019 Adam Wespiser"
 
 default-extensions:
 - OverloadedStrings
-
+- DataKinds
+- TypeOperators
+- DeriveAnyClass
+- DeriveGeneric
+- TypeApplications
+- GADTs
+- FlexibleContexts
+- FlexibleInstances
+- TypeFamilies
 
 extra-source-files:
 - README.md
@@ -25,6 +33,20 @@ description:         Please see the README on GitHub at <https://github.com/adam
 
 dependencies:
 - base >= 4.7 && < 5
+- either >= 4.4.1
+- servant >= 0.16.2
+- wai >= 3.2.2.1
+- warp >= 3.2.28
+- servant-server
+- servant-client
+- http-client
+- http-types
+- text >= 1.2.3.1
+- aeson >= 1.4.5.0
+- beam-core
+- beam-postgres
+- time >= 1.8.0.2
+
 
 library:
   source-dirs: src
