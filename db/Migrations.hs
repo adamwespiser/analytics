@@ -13,12 +13,15 @@ main :: IO ()
 main = do
   connectionStr <- getEnv "DBCONN"
   let dir = "db/migrations/"
+  let initializeTables = "db/migrations/intialize_tables.sql"
   con <- connectPostgreSQL (BS8.pack connectionStr)
   initResult <- withTransaction con $ runMigration $
     MigrationContext MigrationInitialization False con
   case initResult of
-    MigrationError _ -> print initResult
+    MigrationError _ -> do
+      print "failed to run intialization"
+      print initResult
     MigrationSuccess -> do
       migrationResult <- withTransaction con $ runMigration $
-        MigrationContext (MigrationDirectory dir) False con
+        MigrationContext (MigrationFile "init tables" initializeTables) False con
       print migrationResult

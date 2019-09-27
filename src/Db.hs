@@ -1,11 +1,14 @@
 module Db
-    ( PageViewDB
-    , EventDB
+    (
+      PageViewDBT(..)
+    , EventsDBT(..)
+    , AnalyticsDb(..)
+    , analyticsDb
     ) where
 
 import GHC.Generics (Generic)
 import Database.Beam.Schema (
-  Beamable
+    Beamable
   , Columnar
   , defaultDbSettings
   , Database
@@ -19,42 +22,53 @@ import Data.Functor.Identity (Identity)
 import qualified Data.Text as T
 import Data.Time.LocalTime (LocalTime)
 import Database.Beam.Backend.SQL.BeamExtensions (SqlSerial)
+import qualified Database.Beam.Postgres as Pg
+import Database.Beam.Schema
+import Database.Beam as B
 
 
-data EventDBT f = EventDB {
-  devId                :: Columnar f (SqlSerial Int),
-  devSessionTrackingId :: Columnar f T.Text,
-  devCategory          :: Columnar f T.Text,
-  devLabel             :: Columnar f T.Text,
-  devModtime           :: Columnar f LocalTime
+data EventsDBT f = EventsDB {
+  eventsId                :: C f (SqlSerial Int),
+  eventsSessionTrackingId :: C f T.Text,
+  eventsCategory          :: C f T.Text,
+  eventsLabel             :: C f T.Text,
+  eventsModtime           :: C f LocalTime
 } deriving Generic
-instance Beamable EventDBT
-type EventDB =  EventDBT Identity
-type EventId = PrimaryKey EventDBT Identity
-instance Table EventDBT where
-  data PrimaryKey EventDBT f = EventId (Columnar f (SqlSerial Int))
+instance Beamable EventsDBT
+type EventsDB =  EventsDBT Identity
+type EventsId = PrimaryKey EventsDBT Identity
+instance Table EventsDBT where
+  data PrimaryKey EventsDBT f = EventsId (Columnar f (SqlSerial Int))
     deriving (Generic, Beamable)
-  primaryKey = EventId . devId
+  primaryKey = EventsId . eventsId
+deriving instance Show EventsDB
+
 
 
 data PageViewDBT f = PageViewDB {
-  dpgId                :: Columnar f (SqlSerial Int),
-  dpgSessionTrackingID :: Columnar f T.Text,
-  dpgUrlFilePath       :: Columnar f T.Text,
-  dpgModtime           :: Columnar f LocalTime
-} deriving Generic
-instance Beamable PageViewDBT
+  pageviewId                :: C f (SqlSerial Int),
+  pageviewSessionTrackingId :: C f T.Text,
+  pageviewUrlFilepath       :: C f T.Text,
+  pageviewModtime           :: C f LocalTime
+} deriving (Generic, Beamable)
 type PageViewDB = PageViewDBT Identity
 type PageViewId = PrimaryKey PageViewDBT Identity
 instance Table PageViewDBT where
   data PrimaryKey PageViewDBT f = PageViewId (Columnar f (SqlSerial Int))
     deriving (Generic, Beamable)
-  primaryKey = PageViewId . dpgId
+  primaryKey = PageViewId . pageviewId
+deriving instance Show PageViewDB
 
 data AnalyticsDb f  = AnalyticsDb {
-  adbEvent :: f (TableEntity EventDBT),
-  adbPageView :: f (TableEntity PageViewDBT)
+  dbEvents :: f (TableEntity EventsDBT),
+  dbPageView :: f (TableEntity PageViewDBT)
 } deriving (Generic, Database be)
 
 analyticsDb :: DatabaseSettings be AnalyticsDb
-analyticsDb = defaultDbSettings
+analyticsDb =
+  defaultDbSettings `withDbModification`
+    dbModification {
+      dbEvents = setEntityName "events"
+      , dbPageView = setEntityName "page_view"
+    }
+

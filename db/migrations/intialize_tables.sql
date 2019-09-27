@@ -8,8 +8,8 @@ create table events (
 );
 
 
-drop table if exists page_views;
-create table page_views (
+drop table if exists page_view;
+create table page_view (
   id serial primary key,
   session_tracking_id text,
   url_filepath text,
@@ -20,8 +20,8 @@ create table page_views (
 -- TODO set up dependecies and track session ids
 -- for now, we'll just grab a session_tracking_id,
 -- and store it
-drop table if exists sessions;
-create table sessions (
+drop table if exists user_session;
+create table user_session (
   session_tracking_id text,
   modtime timestamp DEFAULT current_timestamp
-)
+);
