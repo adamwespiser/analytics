@@ -32,9 +32,15 @@ import Db
 import ApiTypes (PageView(..), Event(..), ToDatabase, convertToDb)
 
 
-type PostAPI =
-  Header "Authorization" T.Text :> "event" :> ReqBody '[JSON] Event    :> Post '[JSON] Int :<|>
-  Header "Authorization" T.Text :> "page"  :> ReqBody '[JSON] PageView :> Post '[JSON] Int
+type API
+  = Header "Authorization" T.Text
+      :> "event"
+      :> ReqBody '[JSON] Event
+      :> PostCreated '[JSON] NoContent
+    :<|> Header "Authorization" T.Text
+      :> "page"
+      :> ReqBody '[JSON] PageView
+      :> PostCreated '[JSON] NoContent
 
 withAuth :: Maybe T.Text -> AppM a -> AppM a
 withAuth auth f =
@@ -42,12 +48,12 @@ withAuth auth f =
       (f)
       (lift $ Handler $ throwE err403)
 
-server :: ServerT PostAPI AppM
+server :: ServerT API AppM
 server =
   postEvent :<|>
   postPageView
   where
-    postEvent :: Maybe T.Text -> Event -> AppM Int
+    postEvent :: Maybe T.Text -> Event -> AppM NoContent
     postEvent auth event@Event{..} =
       withAuth auth $ do
         Ctx{..} <- ask
@@ -55,22 +61,19 @@ server =
         status <- liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
           insert (dbEvents analyticsDb) $ insertExpressions [convertToDb event]
         liftIO $ print status
-        return 1
-    postPageView :: Maybe T.Text -> PageView -> AppM Int
+        return NoContent
+    postPageView :: Maybe T.Text -> PageView -> AppM NoContent
     postPageView auth pageview@PageView{..} =
       withAuth auth $ do
         Ctx{..} <- ask
         liftIO $ print pageview
         status  <- liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
           insert (dbPageView analyticsDb) $ insertExpressions [convertToDb pageview]
-        return 1
+        return NoContent
 
-
-api :: Proxy PostAPI
-api = Proxy
 
 app :: Ctx -> Application
-app s = serve api $ hoistServer api (`runReaderT` s) server
+app s = serve (Proxy @API) $ hoistServer (Proxy @API) (`runReaderT` s) server
 
 data Ctx = Ctx {
   conn :: Pg.Connection,
