@@ -13,5 +13,5 @@ $ createuser analytics
 *Note: these are destructive, table destroying actions, use them only to set up the the database*
 ```
 $ stack build
-$ source config/dev.env && tack exec -- analytics-migrations
+$ source config/dev.env && stack exec -- analytics-migrations
 ```

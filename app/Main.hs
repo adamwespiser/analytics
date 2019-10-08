@@ -12,11 +12,12 @@ import qualified Data.ByteString.Char8       as BSC
 import           Database.Beam               as B
 import qualified Database.Beam.Query         as BeamQ
 import qualified Database.Beam.Postgres      as Pg
+import           Database.Beam.Backend.SQL.BeamExtensions (runInsertReturningList, unSerial)
 import           Data.Maybe                  (fromMaybe)
-
 import qualified Data.Text      as T
 import           GHC.Generics   (Generic)
 import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, defaultSettings, runSettings)
+import           Safe                   (headMay)
 
 import           Servant
 import           Servant.Server     (ServerError(..), err403)
@@ -29,7 +30,13 @@ import           Text.Read          (readMaybe)
 ---------------------------------------------------------
 import Lib
 import Db
-import ApiTypes (PageView(..), Event(..), ToDatabase, convertToDb)
+import ApiTypes (
+  PageView(..)
+  , Event(..)
+  , UserSession(..)
+  , ToDatabase
+  , convertToDb
+  )
 
 
 type API
@@ -41,6 +48,9 @@ type API
       :> "page"
       :> ReqBody '[JSON] PageView
       :> PostCreated '[JSON] NoContent
+    :<|> Header "Authorization" T.Text
+      :> "session"
+      :> Get '[JSON] UserSession
 
 withAuth :: Maybe T.Text -> AppM a -> AppM a
 withAuth auth f =
@@ -48,10 +58,12 @@ withAuth auth f =
       (f)
       (lift $ Handler $ throwE err403)
 
+
 server :: ServerT API AppM
 server =
   postEvent :<|>
-  postPageView
+  postPageView :<|>
+  getUserSession
   where
     postEvent :: Maybe T.Text -> Event -> AppM NoContent
     postEvent auth event@Event{..} =
@@ -70,7 +82,18 @@ server =
         status  <- liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
           insert (dbPageView analyticsDb) $ insertExpressions [convertToDb pageview]
         return NoContent
-
+    getUserSession :: Maybe T.Text -> AppM UserSession
+    getUserSession auth =
+      withAuth auth $ do
+        Ctx{..} <- ask
+        status  <- liftIO $ Pg.runBeamPostgresDebug putStrLn conn  $ do
+          insertValue <- runInsertReturningList $ insert (dbUserSession analyticsDb) $ insertExpressions [UserSessionDB B.default_ Pg.now_]
+          liftIO $ print insertValue
+          pure insertValue
+        return $ UserSession $  (unSerial . usersessionId . getSingleResult) status
+    getSingleResult lst =
+        fromMaybe (error $ "storeRun: single item not returned: " ++ show lst )
+            $ headMay lst
 
 app :: Ctx -> Application
 app s = serve (Proxy @API) $ hoistServer (Proxy @API) (`runReaderT` s) server

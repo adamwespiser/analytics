@@ -2,6 +2,7 @@ module Db
     (
       PageViewDBT(..)
     , EventsDBT(..)
+    , UserSessionDBT(..)
     , AnalyticsDb(..)
     , analyticsDb
     ) where
@@ -27,9 +28,22 @@ import Database.Beam.Schema
 import Database.Beam as B
 
 
+data UserSessionDBT f = UserSessionDB {
+  usersessionId :: C f (SqlSerial Int),
+  usersessionModtime :: C f LocalTime
+} deriving (Generic)
+instance Beamable UserSessionDBT
+type UserSessionDB = UserSessionDBT Identity
+type UserSessionId = PrimaryKey UserSessionDBT Identity
+instance Table UserSessionDBT where
+  data PrimaryKey UserSessionDBT f = UserSessionId (Columnar f (SqlSerial Int))
+    deriving (Generic, Beamable)
+  primaryKey = UserSessionId . usersessionId
+deriving instance Show UserSessionDB
+
 data EventsDBT f = EventsDB {
   eventsId                :: C f (SqlSerial Int),
-  eventsSessionTrackingId :: C f T.Text,
+  eventsSessionTrackingId :: C f Int,
   eventsCategory          :: C f T.Text,
   eventsLabel             :: C f T.Text,
   eventsModtime           :: C f LocalTime
@@ -47,7 +61,7 @@ deriving instance Show EventsDB
 
 data PageViewDBT f = PageViewDB {
   pageviewId                :: C f (SqlSerial Int),
-  pageviewSessionTrackingId :: C f T.Text,
+  pageviewSessionTrackingId :: C f Int,
   pageviewUrlFilepath       :: C f T.Text,
   pageviewModtime           :: C f LocalTime
 } deriving (Generic, Beamable)
@@ -61,7 +75,8 @@ deriving instance Show PageViewDB
 
 data AnalyticsDb f  = AnalyticsDb {
   dbEvents :: f (TableEntity EventsDBT),
-  dbPageView :: f (TableEntity PageViewDBT)
+  dbPageView :: f (TableEntity PageViewDBT),
+  dbUserSession :: f (TableEntity UserSessionDBT)
 } deriving (Generic, Database be)
 
 analyticsDb :: DatabaseSettings be AnalyticsDb
@@ -70,5 +85,6 @@ analyticsDb =
     dbModification {
       dbEvents = setEntityName "events"
       , dbPageView = setEntityName "page_view"
+      , dbUserSession = setEntityName "user_session"
     }
 

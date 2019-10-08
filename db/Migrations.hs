@@ -12,7 +12,7 @@ import System.Environment (getEnv)
 main :: IO ()
 main = do
   connectionStr <- getEnv "DBCONN"
-  let dir = "db/migrations/"
+  let migrationDir = MigrationDirectory "db/migrations/"
   let initializeTables = "db/migrations/intialize_tables.sql"
   con <- connectPostgreSQL (BS8.pack connectionStr)
   initResult <- withTransaction con $ runMigration $
@@ -23,5 +23,5 @@ main = do
       print initResult
     MigrationSuccess -> do
       migrationResult <- withTransaction con $ runMigration $
-        MigrationContext (MigrationFile "init tables" initializeTables) False con
+        MigrationContext migrationDir True con
       print migrationResult
