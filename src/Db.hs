@@ -19,31 +19,31 @@ import Database.Beam.Schema (
   , Table
   , TableEntity
   )
-import Data.Functor.Identity (Identity)
+import           Data.Functor.Identity (Identity)
 import qualified Data.Text as T
-import Data.Time.LocalTime (LocalTime)
-import Database.Beam.Backend.SQL.BeamExtensions (SqlSerial)
+import           Data.Time.LocalTime (LocalTime)
+import           Database.Beam.Backend.SQL.BeamExtensions (SqlSerial)
 import qualified Database.Beam.Postgres as Pg
-import Database.Beam.Schema
-import Database.Beam as B
-
+import           Database.Beam.Schema
+import           Database.Beam as B
+import           Data.UUID.Types (UUID)
 
 data UserSessionDBT f = UserSessionDB {
-  usersessionId :: C f (SqlSerial Int),
+  usersessionId      :: C f UUID,
   usersessionModtime :: C f LocalTime
 } deriving (Generic)
 instance Beamable UserSessionDBT
 type UserSessionDB = UserSessionDBT Identity
 type UserSessionId = PrimaryKey UserSessionDBT Identity
 instance Table UserSessionDBT where
-  data PrimaryKey UserSessionDBT f = UserSessionId (Columnar f (SqlSerial Int))
+  data PrimaryKey UserSessionDBT f = UserSessionId (Columnar f UUID)
     deriving (Generic, Beamable)
   primaryKey = UserSessionId . usersessionId
 deriving instance Show UserSessionDB
 
 data EventsDBT f = EventsDB {
   eventsId                :: C f (SqlSerial Int),
-  eventsSessionTrackingId :: C f Int,
+  eventsUserSessionId     :: C f UUID,
   eventsCategory          :: C f T.Text,
   eventsLabel             :: C f T.Text,
   eventsModtime           :: C f LocalTime
@@ -58,10 +58,9 @@ instance Table EventsDBT where
 deriving instance Show EventsDB
 
 
-
 data PageViewDBT f = PageViewDB {
   pageviewId                :: C f (SqlSerial Int),
-  pageviewSessionTrackingId :: C f Int,
+  pageviewUserSessionId     :: C f UUID,
   pageviewUrlFilepath       :: C f T.Text,
   pageviewModtime           :: C f LocalTime
 } deriving (Generic, Beamable)
@@ -83,8 +82,8 @@ analyticsDb :: DatabaseSettings be AnalyticsDb
 analyticsDb =
   defaultDbSettings `withDbModification`
     dbModification {
-      dbEvents = setEntityName "events"
-      , dbPageView = setEntityName "page_view"
+        dbEvents      = setEntityName "events"
+      , dbPageView    = setEntityName "page_view"
       , dbUserSession = setEntityName "user_session"
     }
 

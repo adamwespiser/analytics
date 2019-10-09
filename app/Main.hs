@@ -90,7 +90,7 @@ server =
           insertValue <- runInsertReturningList $ insert (dbUserSession analyticsDb) $ insertExpressions [UserSessionDB B.default_ Pg.now_]
           liftIO $ print insertValue
           pure insertValue
-        return $ UserSession $  (unSerial . usersessionId . getSingleResult) status
+        return $ UserSession $  ( usersessionId . getSingleResult) status
     getSingleResult lst =
         fromMaybe (error $ "storeRun: single item not returned: " ++ show lst )
             $ headMay lst

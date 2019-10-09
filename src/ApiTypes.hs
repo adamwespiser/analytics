@@ -12,6 +12,8 @@ import           GHC.Generics (Generic)
 import           Database.Beam as B
 import qualified Database.Beam.Query as BeamQ
 import qualified Database.Beam.Postgres as Pg
+import           Data.UUID.Types (UUID)
+
 ------------------------------------------------------
 import           Db (
     EventsDBT(..)
@@ -25,13 +27,13 @@ class ToDatabase a b where
 
 
 data UserSession = UserSession {
-  usSessionTrackingId :: !Int
+  userSessionId :: UUID
 } deriving (Eq, Show, Generic)
 instance ToJSON UserSession
 instance FromJSON UserSession
 
 data Event = Event {
-  evSessionTrackingId :: Int,
+  evUserSessionId :: UUID,
   evCategory :: T.Text,
   evLabel :: T.Text
 } deriving (Eq, Show, Generic)
@@ -39,7 +41,7 @@ instance ToJSON Event
 instance FromJSON Event
 
 data PageView = PageView {
-  pgSessionTrackingId :: Int,
+  pgUserSessionId :: UUID,
   pgUrlFilePath :: T.Text
 } deriving (Eq, Show, Generic)
 instance ToJSON PageView
@@ -54,7 +56,7 @@ instance ToDatabase PageView (PageViewDBT (BeamQ.QExpr Pg.Postgres s)) where
   convertToDb pageview@PageView{..} =
     PageViewDB
       B.default_
-      (BeamQ.val_ pgSessionTrackingId)
+      (BeamQ.val_ pgUserSessionId)
       (BeamQ.val_ pgUrlFilePath)
       Pg.now_
 
@@ -62,7 +64,7 @@ instance ToDatabase Event (EventsDBT (BeamQ.QExpr Pg.Postgres s)) where
   convertToDb event@Event{..} =
     EventsDB
       B.default_
-      (BeamQ.val_ evSessionTrackingId)
+      (BeamQ.val_ evUserSessionId)
       (BeamQ.val_ evCategory)
       (BeamQ.val_ evLabel)
       Pg.now_
