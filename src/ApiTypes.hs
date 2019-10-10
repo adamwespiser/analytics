@@ -8,11 +8,11 @@ module ApiTypes (
 
 import           Data.Aeson (ToJSON, FromJSON)
 import qualified Data.Text as T
-import           GHC.Generics (Generic)
+import           Data.UUID.Types (UUID)
 import           Database.Beam as B
 import qualified Database.Beam.Query as BeamQ
 import qualified Database.Beam.Postgres as Pg
-import           Data.UUID.Types (UUID)
+import           GHC.Generics (Generic)
 
 ------------------------------------------------------
 import           Db (
