@@ -22,6 +22,7 @@ default-extensions:
 - PartialTypeSignatures
 - NoMonomorphismRestriction
 - MultiParamTypeClasses
+- LambdaCase
 
 extra-source-files:
 - README.md

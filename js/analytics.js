@@ -5,10 +5,9 @@ const API_KEY = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789';
 
 fetchSessionId = async () => {
   var settings = {
-      'method': 'GET',
-      'mode': 'no-cors',
-      'headers': {
-          'Accept': 'application/json',
+      method: 'GET',
+      headers: {
+          Accept: 'application/json',
           'Content-Type': 'application/json'
       }
   };
@@ -18,7 +17,6 @@ fetchSessionId = async () => {
   } catch (e) {
       return e;
   }
-
 };
 
 fetchSessionId();

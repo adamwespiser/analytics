@@ -119,10 +119,26 @@ instance (Monad m) => MonadAuth (ReaderT Ctx m) where
 main :: IO ()
 main = do
   port <- fromMaybe (error "Env var PORT must be set") . readMaybe <$> getEnv "PORT"
+  cors_origin <- getEnv "CORS_ORIGIN"
+
   ctx <- Ctx <$>
           (BSC.pack <$> getEnv "DBCONN" >>= Pg.connectPostgreSQL) <*>
           (T.pack <$> getEnv "API_KEY")
+  let myCors :: WAI.Middleware
+      myCors = cors (const $ Just $ simpleCorsResourcePolicy
+        {corsOrigins    = cors_origin_fn cors_origin,
+         corsVaryOrigin = True } )
+
   let settings = setPort port $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port)) $
         defaultSettings
   runSettings settings $ myCors (app ctx)
+  where
+  -- take the inputed cors origin and format it,
+  -- defaulting to Nothing, which is all origins allowed, if there is
+  -- if CORS_ORIGIN is "" or "*"
+  cors_origin_fn :: String -> Maybe ([BSC.ByteString], Bool)
+  cors_origin_fn = \case
+      ""  -> Nothing
+      "*" -> Nothing
+      x   -> Just ([BSC.pack x], True)
