@@ -56,6 +56,7 @@ dependencies:
 - extra >= 1.6.18
 - safe >= 0.3.17
 - uuid-types >= 1.0.3
+- wai-cors >= 0.2.7
 
 library:
   source-dirs: src

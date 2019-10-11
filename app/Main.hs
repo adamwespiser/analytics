@@ -15,6 +15,8 @@ import qualified Database.Beam.Postgres      as Pg
 import           Database.Beam.Backend.SQL.BeamExtensions (runInsertReturningList, unSerial)
 import           Data.Maybe                  (fromMaybe)
 import qualified Data.Text      as T
+import           Network.Wai.Middleware.Cors (cors, simpleCors, simpleCorsResourcePolicy, CorsResourcePolicy(..))
+
 import           GHC.Generics   (Generic)
 import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, defaultSettings, runSettings)
 import           Safe                   (headMay)
@@ -25,6 +27,7 @@ import           Servant.Server     (ServerError(..), err403)
 import           System.Environment (getEnv)
 import           System.IO          (hPutStrLn, stderr)
 import           Text.Read          (readMaybe)
+import qualified Network.Wai as WAI
 
 
 ---------------------------------------------------------
@@ -38,24 +41,22 @@ import ApiTypes (
   , convertToDb
   )
 
-
 type API
-  = Header "Authorization" T.Text
-      :> "event"
+  = "event"
+      :> QueryParam "auth" T.Text
       :> ReqBody '[JSON] Event
-      :> PostCreated '[JSON] NoContent
-    :<|> Header "Authorization" T.Text
-      :> "page"
+      :> Post '[JSON] NoContent
+    :<|> "page"
+      :> QueryParam "auth" T.Text
       :> ReqBody '[JSON] PageView
-      :> PostCreated '[JSON] NoContent
-    :<|> Header "Authorization" T.Text
-      :> "session"
+      :> Post '[JSON] NoContent
+    :<|> "session"
+      :> QueryParam "auth" T.Text
       :> Get '[JSON] UserSession
 
 withAuth :: Maybe T.Text -> AppM a -> AppM a
 withAuth auth f =
-  ifM (isCorrectAuth auth)
-      (f)
+  ifM (isCorrectAuth auth) f
       (lift $ Handler $ throwE err403)
 
 
@@ -124,4 +125,4 @@ main = do
   let settings = setPort port $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port)) $
         defaultSettings
-  runSettings settings (app ctx)
+  runSettings settings $ myCors (app ctx)
