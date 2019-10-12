@@ -7,13 +7,12 @@ import Database.PostgreSQL.Simple.Migration (
   )
 
 import qualified Data.ByteString.Char8 as BS8
-import System.Environment (getEnv)
+import           System.Environment (getEnv)
 
 main :: IO ()
 main = do
   connectionStr <- getEnv "DBCONN"
   let migrationDir = MigrationDirectory "db/migrations/"
-  let initializeTables = "db/migrations/intialize_tables.sql"
   con <- connectPostgreSQL (BS8.pack connectionStr)
   initResult <- withTransaction con $ runMigration $
     MigrationContext MigrationInitialization False con

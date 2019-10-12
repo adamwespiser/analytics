@@ -21,12 +21,10 @@ import           Db (
   , UserSessionDBT(..)
   )
 
-
 class ToDatabase a b where
   convertToDb :: a -> b
 
-
-data UserSession = UserSession {
+newtype UserSession = UserSession {
   userSessionId :: UUID
 } deriving (Eq, Show, Generic)
 instance ToJSON UserSession
