@@ -32,6 +32,7 @@ import qualified Network.Wai as WAI
 
 ---------------------------------------------------------
 import Db
+import Context (Ctx(..), readContextFromEnv)
 import ApiTypes (
   PageView(..)
   , Event(..)
@@ -107,13 +108,8 @@ app ctx = logStdoutDev $
 
 
 
-data Ctx = Ctx {
-  conn :: Pg.Connection,
-  apiKey :: T.Text
-}
 
 type AppM = ReaderT Ctx Handler
---             newtype Handler a = Handler { runHandler' :: ExceptT ServerError IO a }
 
 
 class (Monad m) => MonadAuth m where
@@ -126,20 +122,10 @@ instance (Monad m) => MonadAuth (ReaderT Ctx m) where
 
 main :: IO ()
 main = do
-  port <- fromMaybe (error "Env var PORT must be set") . readMaybe <$> getEnv "PORT"
-  cors_origin <- getEnv "CORS_ORIGIN"
+  ctx <- readContextFromEnv
 
-  ctx <- Ctx <$>
-          (BSC.pack <$> getEnv "DBCONN" >>= Pg.connectPostgreSQL) <*>
-          (T.pack <$> getEnv "API_KEY")
-  let myCors :: WAI.Middleware
-      myCors = cors (const $ Just $ simpleCorsResourcePolicy
-        {corsOrigins    = cors_origin_fn cors_origin,
-         corsVaryOrigin = True,
-         corsMethods = ["GET", "HEAD", "POST", "DELETE", "PUT"] } )
-
-  let settings = setPort port $
-        setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port)) $
+  let settings = setPort (port ctx) $
+        setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show (port ctx))) $
         defaultSettings
   runSettings settings  (app ctx)
 
