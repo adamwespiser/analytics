@@ -1,6 +1,5 @@
 name:                analytics
 version:             0.1.0.0
-github:              "adamwespiser/analytics"
 license:             BSD3
 license-file:        LICENSE
 category:            Web
@@ -54,6 +53,7 @@ dependencies:
 - either >= 4.4.1
 - servant >= 0.16.2
 - wai >= 3.2.2.1
+- wai-extra >= 3.0.28
 - warp >= 3.2.28
 - servant-server
 - servant-client

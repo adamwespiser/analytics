@@ -14,8 +14,8 @@ import           Database.Beam.Backend.SQL.BeamExtensions (runInsertReturningLis
 import           Data.Maybe                  (fromMaybe)
 import qualified Data.Text      as T
 import           Network.Wai.Middleware.Cors (cors, simpleCorsResourcePolicy, CorsResourcePolicy(..))
--- import Network.Wai.Middleware.Servant.Options
-
+import           Network.Wai.Middleware.Servant.Options
+import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
 
 
 import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, defaultSettings, runSettings)
@@ -96,7 +96,16 @@ server =
             $ headMay lst
 
 app :: Ctx -> Application
-app s = serve (Proxy @API) $ hoistServer (Proxy @API) (`runReaderT` s) server
+app ctx = logStdoutDev $
+  cors (const $ Just policy) $
+  provideOptions apiProxy $
+  serve apiProxy $ hoistServer apiProxy (`runReaderT` ctx) server
+      where
+      apiProxy = Proxy @API
+      policy = simpleCorsResourcePolicy
+                { corsRequestHeaders = [ "content-type" ] }
+
+
 
 data Ctx = Ctx {
   conn :: Pg.Connection,
@@ -132,13 +141,5 @@ main = do
   let settings = setPort port $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port)) $
         defaultSettings
-  runSettings settings $ myCors (app ctx)
-  where
-  -- take the inputed cors origin and format it,
-  -- defaulting to Nothing, which is all origins allowed, if there is
-  -- if CORS_ORIGIN is "" or "*"
-  cors_origin_fn :: String -> Maybe ([BSC.ByteString], Bool)
-  cors_origin_fn = \case
-      ""  -> Nothing
-      "*" -> Nothing
-      x   -> Just ([BSC.pack x], True)
+  runSettings settings  (app ctx)
+
