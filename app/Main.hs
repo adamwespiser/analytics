@@ -3,26 +3,26 @@ module Main where
 import           Control.Monad.Extra         (ifM)
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Class   (lift)
-import           Control.Monad.Trans.Except  (ExceptT, throwE)
+import           Control.Monad.Trans.Except  (throwE)
 import           Control.Monad.Trans.Reader  (ReaderT, ask, asks, runReaderT)
 
-import           Data.Aeson                  (ToJSON, FromJSON)
 import qualified Data.ByteString.Char8       as BSC
 
 import           Database.Beam               as B
-import qualified Database.Beam.Query         as BeamQ
 import qualified Database.Beam.Postgres      as Pg
-import           Database.Beam.Backend.SQL.BeamExtensions (runInsertReturningList, unSerial)
+import           Database.Beam.Backend.SQL.BeamExtensions (runInsertReturningList)
 import           Data.Maybe                  (fromMaybe)
 import qualified Data.Text      as T
-import           Network.Wai.Middleware.Cors (cors, simpleCors, simpleCorsResourcePolicy, CorsResourcePolicy(..))
+import           Network.Wai.Middleware.Cors (cors, simpleCorsResourcePolicy, CorsResourcePolicy(..))
+-- import Network.Wai.Middleware.Servant.Options
 
-import           GHC.Generics   (Generic)
+
+
 import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, defaultSettings, runSettings)
 import           Safe                   (headMay)
 
 import           Servant
-import           Servant.Server     (ServerError(..), err403)
+import           Servant.Server     (err403)
 
 import           System.Environment (getEnv)
 import           System.IO          (hPutStrLn, stderr)
@@ -31,13 +31,11 @@ import qualified Network.Wai as WAI
 
 
 ---------------------------------------------------------
-import Lib
 import Db
 import ApiTypes (
   PageView(..)
   , Event(..)
   , UserSession(..)
-  , ToDatabase
   , convertToDb
   )
 
@@ -82,6 +80,7 @@ server =
         liftIO $ print pageview
         status  <- liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
           insert (dbPageView analyticsDb) $ insertExpressions [convertToDb pageview]
+        liftIO $ print status
         return NoContent
     getUserSession :: Maybe T.Text -> AppM UserSession
     getUserSession auth =
@@ -127,7 +126,8 @@ main = do
   let myCors :: WAI.Middleware
       myCors = cors (const $ Just $ simpleCorsResourcePolicy
         {corsOrigins    = cors_origin_fn cors_origin,
-         corsVaryOrigin = True } )
+         corsVaryOrigin = True,
+         corsMethods = ["GET", "HEAD", "POST", "DELETE", "PUT"] } )
 
   let settings = setPort port $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port)) $

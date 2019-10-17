@@ -51,7 +51,7 @@ instance ToDatabase UserSession (UserSessionDBT (BeamQ.QExpr Pg.Postgres s)) whe
 
 
 instance ToDatabase PageView (PageViewDBT (BeamQ.QExpr Pg.Postgres s)) where
-  convertToDb pageview@PageView{..} =
+  convertToDb PageView{..} =
     PageViewDB
       B.default_
       (BeamQ.val_ pgUserSessionId)
@@ -59,7 +59,7 @@ instance ToDatabase PageView (PageViewDBT (BeamQ.QExpr Pg.Postgres s)) where
       Pg.now_
 
 instance ToDatabase Event (EventsDBT (BeamQ.QExpr Pg.Postgres s)) where
-  convertToDb event@Event{..} =
+  convertToDb Event{..} =
     EventsDB
       B.default_
       (BeamQ.val_ evUserSessionId)

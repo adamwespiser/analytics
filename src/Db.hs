@@ -1,8 +1,11 @@
 module Db
     (
       PageViewDBT(..)
+    , PageViewId
     , EventsDBT(..)
+    , EventsId
     , UserSessionDBT(..)
+    , UserSessionId
     , AnalyticsDb(..)
     , analyticsDb
     ) where
@@ -23,9 +26,7 @@ import           Data.Functor.Identity (Identity)
 import qualified Data.Text as T
 import           Data.Time.LocalTime (LocalTime)
 import           Database.Beam.Backend.SQL.BeamExtensions (SqlSerial)
-import qualified Database.Beam.Postgres as Pg
 import           Database.Beam.Schema
-import           Database.Beam as B
 import           Data.UUID.Types (UUID)
 
 data UserSessionDBT f = UserSessionDB {

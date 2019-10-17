@@ -2,9 +2,24 @@ name:                analytics
 version:             0.1.0.0
 github:              "adamwespiser/analytics"
 license:             BSD3
+license-file:        LICENSE
+category:            Web
 author:              "Adam Wespiser"
 maintainer:          "adamwespiser@gmail.com"
-copyright:           "Copyright (c) 2019 Adam Wespiser"
+copyright:           "© 2019 Adam Wespiser"
+github:              https://github.com/adamwespiser/analytics
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+ghc-options:
+- -Wall
+- -Werror
+- -Wcompat
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wredundant-constraints
 
 default-extensions:
 - OverloadedStrings
@@ -24,9 +39,6 @@ default-extensions:
 - MultiParamTypeClasses
 - LambdaCase
 
-extra-source-files:
-- README.md
-- ChangeLog.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -58,6 +70,7 @@ dependencies:
 - safe >= 0.3.17
 - uuid-types >= 1.0.3
 - wai-cors >= 0.2.7
+- servant-options >= 0.1.0.0
 
 library:
   source-dirs: src
