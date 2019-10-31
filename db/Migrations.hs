@@ -18,7 +18,7 @@ main = do
     MigrationContext MigrationInitialization False con
   case initResult of
     MigrationError _ -> do
-      print "failed to run intialization"
+      putStrLn "failed to run intialization"
       print initResult
     MigrationSuccess -> do
       migrationResult <- withTransaction con $ runMigration $

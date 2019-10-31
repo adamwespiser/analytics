@@ -19,6 +19,7 @@ ghc-options:
 - -Wincomplete-record-updates
 - -Wincomplete-uni-patterns
 - -Wredundant-constraints
+- -Wtype-defaults
 
 default-extensions:
 - OverloadedStrings
