@@ -1,0 +1,51 @@
+sudo: false
+
+# thanks to http://stackoverflow.com/a/24600210/3780203
+# Handle git submodules yourself
+git:
+    submodules: false
+
+# Choose a lightweight base image; we provide our own build tools.
+language: c
+
+# GHC depends on GMP. You can add other dependencies here as well.
+addons:
+  apt:
+    packages:
+    - libgmp-dev
+  postgresql: "11.2"
+
+# The different configurations we want to test. You could also do things like
+# change flags or use --stack-yaml to point to a different file.
+env:
+- ROLLBAR_TOKEN="todo"
+- ROLLBAR_ENVIRONMENT="test"
+
+before_install:
+# Download and unpack the stack executable
+  - mkdir -p ~/.local/bin
+  - export PATH=$HOME/.local/bin:$PATH
+  - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+  - sudo apt-get update
+  - sudo apt-get --yes remove postgresql\*
+  - sudo apt-get install -y postgresql-11 postgresql-client-11
+  - sudo cp /etc/postgresql/{9.6,11}/main/pg_hba.conf
+  - sudo service postgresql restart 11
+  - export PATH=/usr/lib/postgresql/11/bin:$PATH
+
+before_script:
+  - psql --version
+  - psql -c 'create database travis_ci_test;' -U postgres
+
+services:
+  - postgresql
+
+# This line does all of the work: installs GHC if necessary, build the library,
+# executables, and test suites, and runs the test suites. --no-terminal works
+# around some quirks in Travis's terminal implementation.
+script: TEST_TYPE=Travis stack --no-terminal --install-ghc test
+
+# Caching so the next build will be fast too.
+cache:
+  directories:
+  - $HOME/.stack
