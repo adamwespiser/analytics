@@ -1,4 +1,7 @@
 # analytics
+[![Build Status](https://travis-ci.org/adamwespiser/analytics.svg?branch=master)](https://travis-ci.org/adamwespiser/analytics)
+
+
 
 ## Philosophy
 Data helps us make better decisions, and the tools that enable this should be easy to understand, transparent, and fully controllable.
@@ -46,12 +49,12 @@ $ source config/dev.env && stack exec -- analytics-migrations
 ```
 
 #### Heroku Deploy
-For the analytics server.    
-0. Make sure a production DB is set up, and that the migrations/db set up have been successfully performed. This can be done by getting the prod config, and running `source [production config] && stack exec -- analytics-migrations`.   
-1. Set up heroku project
-2. use the haskell build pack `$ heroku buildpacks:set https://github.com/mfine/heroku-buildpack-stack --app {project_name}`
-3. In heroku, set environment variables, API_KEY, CORS_ORIGIN, DBCONN. Note, on heroku, the environmental variable `PORT` has to be set by the heroku environment.
-4. on cmd line, `$ heroku git:remote -a [project-name]`
+For the analytics server.
+1. Make sure a production DB is set up, and that the migrations/db set up have been successfully performed. This can be done by getting the prod config, and running `source [production config] && stack exec -- analytics-migrations`.
+2. Set up heroku project
+3. use the haskell build pack `$ heroku buildpacks:set https://github.com/mfine/heroku-buildpack-stack --app {project_name}`
+4. In heroku, set environment variables, API_KEY, CORS_ORIGIN, DBCONN. Note, on heroku, the environmental variable `PORT` has to be set by the heroku environment.
+5. on cmd line, `$ heroku git:remote -a [project-name]`
 
 
 
