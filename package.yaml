@@ -111,3 +111,11 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - analytics
+    - hspec >= 2.7.1
+    - postgresql-simple >= 0.4.9.0
+    - postgresql-simple-migration >= 0.1.14.0
+    - postgres-options >= 0.1.0.1
+    - tmp-postgres >= 0.3.0.1
+    - string-conversions >= 0.4.0.1
+    - persistent >= 2.5
+    - protolude >= 0.2

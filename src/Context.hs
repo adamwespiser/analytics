@@ -1,6 +1,7 @@
 module Context (
   Ctx(..)
   , readContextFromEnv
+  , readContextFromEnvWithConnStr
 ) where
 
 import qualified Database.Beam.Postgres      as Pg
@@ -22,6 +23,14 @@ readContextFromEnv :: IO Ctx
 readContextFromEnv =
   Ctx <$>
     (BSC.pack <$> getEnv "DBCONN" >>= Pg.connectPostgreSQL) <*>
+    (fromMaybe (error "Env var PORT must be set") . readMaybe <$> getEnv "PORT") <*>
+    (T.pack <$> getEnv "API_KEY") <*>
+    (T.pack <$> getEnv "CORS_ORIGIN")
+
+readContextFromEnvWithConnStr :: T.Text -> IO Ctx
+readContextFromEnvWithConnStr conn =
+  Ctx <$>
+    ( Pg.connectPostgreSQL $ BSC.pack $ T.unpack conn) <*>
     (fromMaybe (error "Env var PORT must be set") . readMaybe <$> getEnv "PORT") <*>
     (T.pack <$> getEnv "API_KEY") <*>
     (T.pack <$> getEnv "CORS_ORIGIN")
