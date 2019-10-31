@@ -6,8 +6,6 @@ import           Control.Monad.Trans.Class   (lift)
 import           Control.Monad.Trans.Except  (throwE)
 import           Control.Monad.Trans.Reader  (ReaderT, ask, asks, runReaderT)
 
-import qualified Data.ByteString.Char8       as BSC
-
 import           Database.Beam               as B
 import qualified Database.Beam.Postgres      as Pg
 import           Database.Beam.Backend.SQL.BeamExtensions (runInsertReturningList)
@@ -24,10 +22,7 @@ import           Safe                   (headMay)
 import           Servant
 import           Servant.Server     (err403)
 
-import           System.Environment (getEnv)
 import           System.IO          (hPutStrLn, stderr)
-import           Text.Read          (readMaybe)
-import qualified Network.Wai as WAI
 
 
 ---------------------------------------------------------
