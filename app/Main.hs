@@ -102,8 +102,6 @@ app ctx = logStdoutDev $
                 { corsRequestHeaders = [ "content-type" ] }
 
 
-
-
 type AppM = ReaderT Ctx Handler
 
 
@@ -122,5 +120,9 @@ main = do
   let settings = setPort (port ctx) $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show (port ctx))) $
         defaultSettings
-  runSettings settings  (app ctx)
+  runSettings settings (app ctx)
 
+runAppWithContext :: Ctx -> IO ()
+runAppWithContext ctx =
+  let settings = setPort (port ctx) $ defaultSettings
+  in runSettings settings (app ctx)
