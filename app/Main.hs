@@ -4,17 +4,17 @@ import           Control.Monad.Extra         (ifM)
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Class   (lift)
 import           Control.Monad.Trans.Except  (throwE)
-import           Control.Monad.Trans.Reader  (ReaderT, ask, asks, runReaderT)
+import           Control.Monad.Trans.Reader  (ReaderT, ask, runReaderT)
 
 import           Database.Beam               as B
 import qualified Database.Beam.Postgres      as Pg
 import           Database.Beam.Backend.SQL.BeamExtensions (runInsertReturningList)
 import           Data.Maybe                  (fromMaybe)
 import qualified Data.Text      as T
+import qualified Data.UUID.Types as UUID (nil)
 import           Network.Wai.Middleware.Cors (cors, simpleCorsResourcePolicy, CorsResourcePolicy(..))
 import           Network.Wai.Middleware.Servant.Options
 import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
-
 
 import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, defaultSettings, runSettings)
 import           Safe                   (headMay)
@@ -48,44 +48,32 @@ type API
       :> QueryParam "auth" T.Text
       :> Get '[JSON] UserSession
 
-withAuth :: Maybe T.Text -> AppM a -> AppM a
-withAuth auth f =
-  ifM (isCorrectAuth auth) f
-      (lift $ Handler $ throwE err403)
 
-
-server :: ServerT API AppM
+server :: ServerT API (AppM Ctx)
 server =
   postEvent :<|>
   postPageView :<|>
   getUserSession
   where
-    postEvent :: Maybe T.Text -> Event -> AppM NoContent
+    postEvent :: Maybe T.Text -> Event -> AppM Ctx NoContent
     postEvent auth event@Event{..} =
       withAuth auth $ do
-        Ctx{..} <- ask
+        Ctx{..} <- getContext
         liftIO $ print event
-        status <- liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
-          insert (dbEvents analyticsDb) $ insertExpressions [convertToDb event]
-        liftIO $ print status
+        insertEvent conn event
         return NoContent
-    postPageView :: Maybe T.Text -> PageView -> AppM NoContent
+    postPageView :: Maybe T.Text -> PageView -> AppM Ctx NoContent
     postPageView auth pageview@PageView{..} =
       withAuth auth $ do
-        Ctx{..} <- ask
+        Ctx{..} <- getContext
         liftIO $ print pageview
-        status  <- liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
-          insert (dbPageView analyticsDb) $ insertExpressions [convertToDb pageview]
-        liftIO $ print status
+        insertPageView conn pageview
         return NoContent
-    getUserSession :: Maybe T.Text -> AppM UserSession
+    getUserSession :: Maybe T.Text -> AppM Ctx UserSession
     getUserSession auth =
       withAuth auth $ do
-        Ctx{..} <- ask
-        status  <- liftIO $ Pg.runBeamPostgresDebug putStrLn conn  $ do
-          insertValue <- runInsertReturningList $ insert (dbUserSession analyticsDb) $ insertExpressions [UserSessionDB B.default_ Pg.now_]
-          liftIO $ print insertValue
-          pure insertValue
+        Ctx{..} <- getContext
+        status <- insertUserSession conn
         return $ UserSession $  ( usersessionId . getSingleResult) status
     getSingleResult lst =
         fromMaybe (error $ "storeRun: single item not returned: " ++ show lst )
@@ -102,16 +90,43 @@ app ctx = logStdoutDev $
                 { corsRequestHeaders = [ "content-type" ] }
 
 
-type AppM = ReaderT Ctx Handler
-
+type AppM ctx = ReaderT ctx Handler
 
 class (Monad m) => MonadAuth m where
-  isCorrectAuth :: Maybe T.Text -> m Bool
+  withAuth :: Maybe T.Text -> m a -> m a
 
-instance (Monad m) => MonadAuth (ReaderT Ctx m) where
-  isCorrectAuth auth = do
-    key <- asks apiKey
-    pure $ auth == Just key
+instance MonadAuth (AppM Ctx) where
+  withAuth auth f =
+    ifM (isCorrectAuth auth) f
+        (lift $ Handler $ throwE err403)
+    where
+      isCorrectAuth :: Maybe T.Text -> AppM Ctx Bool
+      isCorrectAuth auth' = do
+        Ctx{..} <- getContext
+        pure $ auth' == Just apiKey
+
+class Monad m => HasContext m where
+  getContext :: m Ctx
+instance HasContext (AppM Ctx) where
+  getContext = ask
+
+class Monad m => MonadDb m where
+  insertUserSession :: Pg.Connection -> m [UserSessionDBT Identity]
+  fetchUserSession :: Pg.Connection -> m UserSession
+  insertPageView :: Pg.Connection -> PageView -> m ()
+  insertEvent :: Pg.Connection -> Event -> m ()
+
+instance MonadDb (AppM Ctx)  where
+  insertUserSession conn = liftIO $ Pg.runBeamPostgresDebug putStrLn conn  $ do
+    insertValue <- runInsertReturningList $ insert (dbUserSession analyticsDb) $ insertExpressions [UserSessionDB B.default_ Pg.now_]
+    liftIO $ print insertValue
+    pure insertValue
+  fetchUserSession _ = liftIO $ return $ UserSession UUID.nil
+  insertPageView conn pageview = liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
+    insert (dbPageView analyticsDb) $ insertExpressions [convertToDb pageview]
+  insertEvent conn event = liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
+    insert (dbEvents analyticsDb) $ insertExpressions [convertToDb event]
+
 
 main :: IO ()
 main = do

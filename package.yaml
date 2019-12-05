@@ -38,7 +38,7 @@ default-extensions:
 - NoMonomorphismRestriction
 - MultiParamTypeClasses
 - LambdaCase
-
+- AllowAmbiguousTypes
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -72,6 +72,7 @@ dependencies:
 - uuid-types >= 1.0.3
 - wai-cors >= 0.2.7
 - servant-options >= 0.1.0.0
+- mtl >= 2.2.2
 
 library:
   source-dirs: src

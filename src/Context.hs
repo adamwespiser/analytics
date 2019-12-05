@@ -29,8 +29,9 @@ readContextFromEnv =
 
 readContextFromEnvWithConnStr :: T.Text -> IO Ctx
 readContextFromEnvWithConnStr conn =
-  Ctx <$>
-    ( Pg.connectPostgreSQL $ BSC.pack $ T.unpack conn) <*>
-    (fromMaybe (error "Env var PORT must be set") . readMaybe <$> getEnv "PORT") <*>
-    (T.pack <$> getEnv "API_KEY") <*>
-    (T.pack <$> getEnv "CORS_ORIGIN")
+  let connStr = BSC.pack $ T.unpack conn
+  in Ctx <$>
+      Pg.connectPostgreSQL connStr <*>
+      (fromMaybe (error "Env var PORT must be set") . readMaybe <$> getEnv "PORT") <*>
+      (T.pack <$> getEnv "API_KEY") <*>
+      (T.pack <$> getEnv "CORS_ORIGIN")
