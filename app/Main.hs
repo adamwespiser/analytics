@@ -22,7 +22,7 @@ import           Safe                   (headMay)
 import           Servant
 import           Servant.Server     (err403)
 
-import           System.IO          (hPutStrLn, stderr)
+import           System.IO          (hPutStrLn, stderr, hSetBuffering, stdout, NoBuffering)
 
 
 ---------------------------------------------------------
@@ -130,6 +130,7 @@ instance MonadDb (AppM Ctx)  where
 
 main :: IO ()
 main = do
+  hSetBuffering stdout NoBuffering
   ctx <- readContextFromEnv
 
   let settings = setPort (port ctx) $
