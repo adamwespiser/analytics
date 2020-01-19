@@ -114,7 +114,7 @@ withDB = beforeAll getDatabase . aroundCtx_ runWarpServer . afterAll fst . after
           & Warp.setPort (Context.port ctx)
           & Warp.setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ Protolude.show (Context.port ctx)))
           & Warp.setOnException (\req ex -> hPutStrLn stderr ("warp exception " ++ Protolude.show req ++ " " ++ Protolude.show ex ))
-    bracket (C.forkIO $ hSetBuffering stdout LineBuffering >> (Warp.runSettings settings $app ctx))
+    bracket (C.forkIO $ hSetBuffering stdout LineBuffering >> (Warp.runSettings settings $ app ctx))
       C.killThread
       (const action)
 

@@ -11,7 +11,7 @@ import           Network.HTTP.Client hiding (Proxy)
 import           Servant
 import           Servant.Client
 
-import           Data.Either         (isLeft, isRight)
+import           Utils               (isLeft, isRight)
 import qualified Data.UUID.Types     as UUID (nil)
 import           Server              (API)
 import           Test.Hspec
