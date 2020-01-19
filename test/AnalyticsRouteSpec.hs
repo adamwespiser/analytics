@@ -23,28 +23,23 @@ import qualified Network.Wai.Handler.Warp         as Warp
 import           Servant
 import           Servant.Client
 import           Servant.Server
--- import           Servant.QuickCheck
+--xjjimport           Servant.QuickCheck
 -- import           Servant.QuickCheck.Internal (serverDoesntSatisfy)
 
 import           Test.Hspec
+import           Data.Either (isLeft, isRight)
+import           Data.Function ((&))
 --import           Test.Hspec.Wai
 --import           Test.Hspec.Wai.Matcher
 import Server (API, app, readContextFromEnv)
+import System.IO (stderr, BufferMode(..), hPutStrLn, hSetBuffering, stdout)
 import qualified Data.UUID.Types as UUID (nil)
-
-withUserApp :: IO () -> IO ()
-withUserApp action = do
-  ctx <- readContextFromEnv
-  bracket (C.forkIO $ Warp.run 8888 $ app ctx)
-    C.killThread
-    (const action)
-
 
 {- API takes Event, PageView, UserSession -}
 data Endpoint = EpEvent | EpPageView | EpUserSession
 
-getUrl :: Text -> Endpoint -> IO BaseUrl
-getUrl key ep = parseBaseUrl $ unpack $ "http://localhost:8888/"
+getUrl ::IO BaseUrl
+getUrl = parseBaseUrl $ unpack $ "http://localhost:8888/"
   where fsub EpEvent = "event"
         fsub EpPageView = "page"
         fsub EpUserSession = "session"
@@ -56,27 +51,32 @@ event = Event {
   , evLabel = "LABEL"
   }
 
-getEventCaller :: ((Maybe Text -> Event -> ClientM NoContent) :<|> (a0 :<|> b0))
- -> (Maybe Text -> Event -> ClientM NoContent)
-getEventCaller (f :<|> _ :<|> _) = f
+gec :: (x :<|> y) -> (x, y)
+gec (a :<|> b) = (a, b)
 
 spec :: Spec
 spec = withDB $ describe  "withDB works" $ do
-    around_ withUserApp $ do
       let myapi = client (Proxy :: Proxy API)
-      ctx <- runIO $ readContextFromEnv
-      baseUrl <- runIO $ getUrl (apiKey ctx) EpEvent
+      baseUrl <- runIO $ parseBaseUrl $ unpack $ "localhost:8888/"
       manager <- runIO $ newManager defaultManagerSettings
+      runIO $ C.threadDelay 10000
       let clientEnv = mkClientEnv manager baseUrl
       it "creates db env" $ \(_, config) ->
-        Context.port config `shouldBe` 8080
-{-
+        Context.port config `shouldBe` 8888
       it "auth fails on empty key" $ \(_, config) -> do
-        result <- runClientM ((getEventCaller myapi)  (Just "") event) clientEnv
-        result `shouldBe` Right NoContent
-
+        let eventRoute = fst $ gec myapi
+        result <- runClientM (eventRoute  (Just "") event) clientEnv
+        result `shouldSatisfy` (\x -> isLeft x)
       it "event endpoint works" $ \(_, config) -> do
-        result <- runClientM ((getEventCaller myapi)  (Just $ apiKey ctx) event) clientEnv
+        let key = Just $ apiKey config
+        let eventRoute = fst $ gec myapi
+        result <- runClientM (eventRoute key event) clientEnv
         result `shouldBe` Right NoContent
--}
+      it "session endpoint works" $ \(_, config) -> do
+        let sessionRoute = snd $ gec $ snd $ gec myapi
+        let key = Just $ apiKey config
+        result <- runClientM (sessionRoute key) clientEnv
+        result `shouldSatisfy` (\x -> isRight x
+            && case x of {Right (UserSession uuid) -> not (uuid == UUID.nil);
+                          _ -> False;} )
 

@@ -13,6 +13,7 @@ import           Data.Maybe                  (fromMaybe)
 import           Database.PostgreSQL.Simple.Options (Options (..))
 import           System.IO                          (IOMode (WriteMode), openFile)
 import           Test.Hspec
+import           Test.Hspec.Core.Hooks  (around)
 import           Database.PostgreSQL.Simple (Query, withTransaction, execute_)
 import           Database.PostgreSQL.Simple.Types (Query(..))
 import           System.Environment (getEnv)
@@ -22,8 +23,12 @@ import           Database.PostgreSQL.Simple.Migration (
   , MigrationCommand(..)
   , MigrationResult(..)
   )
-import            Context (Ctx(..), readContextFromEnvWithConnStr)
+import            Context (Ctx(..), readContextFromEnvWithConnStr, readContextFromEnv)
 import qualified Data.Text as T
+import qualified Network.Wai.Handler.Warp         as Warp
+import System.IO (stderr, BufferMode(..), hSetBuffering, stdout)
+import qualified Control.Concurrent as C
+import Server (app)
 --- Setup and teardown helpers
 ---
 pg_tables = ["user_session", "page_view", "events"]
@@ -33,8 +38,12 @@ data DBLogging = VERBOSE | SILENT deriving Read
 data TestType = Local | Travis deriving Read
 
 withDB :: SpecWith (IO (), Ctx) -> Spec
-withDB = beforeAll getDatabase . afterAll fst . after (truncateDb . snd)
+withDB = beforeAll getDatabase . aroundCtx_ runWarpServer . afterAll fst . afterAll (truncateDb . snd)
  where
+
+  aroundCtx_ :: (Ctx -> IO () -> IO ()) -> SpecWith (IO (), Ctx) -> SpecWith (IO (), Ctx)
+  aroundCtx_ action = aroundWith $ \e a -> action (snd a) (e a)
+
   getDatabase :: IO (IO (), Ctx)
   getDatabase = getEnv "TEST_TYPE" >>= \case
     "Local" -> createTmpDatabase
@@ -50,7 +59,9 @@ withDB = beforeAll getDatabase . afterAll fst . after (truncateDb . snd)
     (db, cleanup) <- startDb verbosity
     pguser <- getEnv "PGUSER"
     config <- readContextFromEnvWithConnStr $ toConnectionString pguser db
-    return (cleanup, config)
+    -- making an additional connection
+    conn <- Pg.connectPostgreSQL $ BSC.pack $ T.unpack $ toConnectionString pguser db
+    return (cleanup, config { conn})
 
   -- https://stackoverflow.com/questions/5342440/reset-auto-increment-counter-in-postgres
   truncateDb :: Ctx -> IO ()
@@ -58,7 +69,6 @@ withDB = beforeAll getDatabase . afterAll fst . after (truncateDb . snd)
    where
     query_statment =  Query $ BSC.pack $ T.unpack truncateStatement :: Query
     truncateStatement = "TRUNCATE TABLE " <> T.intercalate ", " pg_tables <> " RESTART IDENTITY CASCADE"
-    --truncateTables = rawExecute  truncateStatement []
 
   toConnectionString :: String -> DB -> T.Text
   toConnectionString defaultUser DB {..} =
@@ -70,14 +80,13 @@ withDB = beforeAll getDatabase . afterAll fst . after (truncateDb . snd)
 
   startDb :: String -> IO (DB, IO ())
   startDb verbosity = mask $ \restore -> do
-    Prelude.putStrLn "startDB start"
     (outHandle, errHandle) <- case verbosity of
       "VERBOSE" -> pure (stdout, stderr)
       _ -> (,) <$> devNull <*> devNull -- "SILENT"
     db <- PG.startWithHandles PG.Localhost defaultOptions outHandle errHandle >>= either throwIO pure
     pguser <- getEnv "PGUSER"
     conn <- Pg.connectPostgreSQL $ BSC.pack $ T.unpack $ toConnectionString pguser db
-    restore (migrateDB conn >>  Prelude.putStrLn "startDb end" >> pure (db, cleanup db))
+    restore (migrateDB conn >> pure (db, cleanup db))
       `onException` cleanup db
    where
     devNull = openFile "/dev/null" WriteMode
@@ -96,3 +105,14 @@ withDB = beforeAll getDatabase . afterAll fst . after (truncateDb . snd)
         migrationResult <- withTransaction con $ runMigration $
           MigrationContext migrationDir True con
         Prelude.print migrationResult
+
+  runWarpServer :: Ctx -> IO () -> IO ()
+  runWarpServer ctx action = do
+    let settings = Warp.defaultSettings
+          & Warp.setPort (Context.port ctx)
+          & Warp.setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ Protolude.show (Context.port ctx)))
+          & Warp.setOnException (\(Just req) ex -> hPutStrLn stderr ("warp exception " ++ Protolude.show stderr ++ " " ++ Protolude.show req ))
+    bracket (C.forkIO $ hSetBuffering stdout LineBuffering >> (Warp.runSettings settings $ app ctx))
+      C.killThread
+      (const action)
+

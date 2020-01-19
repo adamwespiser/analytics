@@ -1,25 +1,27 @@
 name:                analytics
-version:             0.1.0.0
+version:             0.1.0.1
 license:             BSD3
 license-file:        LICENSE
 category:            Web
 author:              "Adam Wespiser"
 maintainer:          "adamwespiser@gmail.com"
-copyright:           "© 2019 Adam Wespiser"
+copyright:           "© 2020 Adam Wespiser"
 github:              https://github.com/adamwespiser/analytics
 
 extra-source-files:
 - README.md
 - ChangeLog.md
+- LICENSE
+- Procfile
 
-ghc-options:
-- -Wall
-- -Werror
-- -Wcompat
-- -Wincomplete-record-updates
-- -Wincomplete-uni-patterns
-- -Wredundant-constraints
-- -Wtype-defaults
+#ghc-options:
+#- -Wall
+#- -Werror
+#- -Wcompat
+#- -Wincomplete-record-updates
+#- -Wincomplete-uni-patterns
+#- -Wredundant-constraints
+#- -Wtype-defaults
 
 default-extensions:
 - OverloadedStrings
@@ -35,6 +37,7 @@ default-extensions:
 - StandaloneDeriving
 - RecordWildCards
 - PartialTypeSignatures
+- NamedFieldPuns
 - NoMonomorphismRestriction
 - MultiParamTypeClasses
 - LambdaCase
@@ -103,7 +106,7 @@ executables:
 
 
 tests:
-  analytics-test:
+  spec:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -113,6 +116,7 @@ tests:
     dependencies:
     - analytics
     - hspec >= 2.7.1
+    - hspec-core
     - postgresql-simple >= 0.4.9.0
     - postgresql-simple-migration >= 0.1.14.0
     - postgres-options >= 0.1.0.1
