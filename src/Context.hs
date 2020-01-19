@@ -4,19 +4,19 @@ module Context (
   , readContextFromEnvWithConnStr
 ) where
 
-import qualified Database.Beam.Postgres      as Pg
-import qualified Data.ByteString.Char8       as BSC
-import qualified Data.Text as T
-import           System.Environment  (getEnv)
-import           Data.Maybe          (fromMaybe)
-import           Text.Read           (readMaybe)
+import qualified Data.ByteString.Char8  as BSC
+import           Data.Maybe             (fromMaybe)
+import qualified Data.Text              as T
+import qualified Database.Beam.Postgres as Pg
+import           System.Environment     (getEnv)
+import           Text.Read              (readMaybe)
 
 
 data Ctx = Ctx {
-  conn :: Pg.Connection,
-  port :: Int,
-  apiKey :: T.Text,
-  corsReqOrigin  :: T.Text
+  conn          :: Pg.Connection,
+  port          :: Int,
+  apiKey        :: T.Text,
+  corsReqOrigin :: T.Text
 }
 
 readContextFromEnv :: IO Ctx

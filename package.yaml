@@ -14,14 +14,14 @@ extra-source-files:
 - LICENSE
 - Procfile
 
-#ghc-options:
-#- -Wall
-#- -Werror
-#- -Wcompat
-#- -Wincomplete-record-updates
-#- -Wincomplete-uni-patterns
-#- -Wredundant-constraints
-#- -Wtype-defaults
+ghc-options:
+- -Wall
+- -Werror
+- -Wcompat
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wredundant-constraints
+- -Wtype-defaults
 
 default-extensions:
 - OverloadedStrings

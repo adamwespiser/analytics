@@ -6,20 +6,17 @@ module ApiTypes (
   , convertToDb
 ) where
 
-import           Data.Aeson (ToJSON, FromJSON)
-import qualified Data.Text as T
-import           Data.UUID.Types (UUID)
-import           Database.Beam as B
-import qualified Database.Beam.Query as BeamQ
+import           Data.Aeson             (FromJSON, ToJSON)
+import qualified Data.Text              as T
+import           Data.UUID.Types        (UUID)
+import           Database.Beam          as B
 import qualified Database.Beam.Postgres as Pg
-import           GHC.Generics (Generic)
+import qualified Database.Beam.Query    as BeamQ
+import           GHC.Generics           (Generic)
 
 ------------------------------------------------------
-import           Db (
-    EventsDBT(..)
-  , PageViewDBT(..)
-  , UserSessionDBT(..)
-  )
+import           Db                     (EventsDBT (..), PageViewDBT (..),
+                                         UserSessionDBT (..))
 
 class ToDatabase a b where
   convertToDb :: a -> b
@@ -32,15 +29,15 @@ instance FromJSON UserSession
 
 data Event = Event {
   evUserSessionId :: UUID,
-  evCategory :: T.Text,
-  evLabel :: T.Text
+  evCategory      :: T.Text,
+  evLabel         :: T.Text
 } deriving (Eq, Show, Generic)
 instance ToJSON Event
 instance FromJSON Event
 
 data PageView = PageView {
   pgUserSessionId :: UUID,
-  pgUrlFilePath :: T.Text
+  pgUrlFilePath   :: T.Text
 } deriving (Eq, Show, Generic)
 instance ToJSON PageView
 instance FromJSON PageView

@@ -14,6 +14,8 @@ import GHC.Generics (Generic)
 import Database.Beam.Schema (
     Beamable
   , Columnar
+  , C
+  , dbModification
   , defaultDbSettings
   , Database
   , DatabaseSettings
@@ -21,13 +23,15 @@ import Database.Beam.Schema (
   , primaryKey
   , Table
   , TableEntity
+  , withDbModification
+  , setEntityName
   )
 import           Data.Functor.Identity (Identity)
 import qualified Data.Text as T
 import           Data.Time.LocalTime (LocalTime)
 import           Database.Beam.Backend.SQL.BeamExtensions (SqlSerial)
-import           Database.Beam.Schema
 import           Data.UUID.Types (UUID)
+
 
 data UserSessionDBT f = UserSessionDB {
   usersessionId      :: C f UUID,

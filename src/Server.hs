@@ -7,24 +7,39 @@ module Server (
   , runMain
 ) where
 
-import           Control.Monad.Trans.Reader  (runReaderT)
-import           Control.Monad.IO.Class      (liftIO)
-import           Data.Maybe                  (fromMaybe)
-import qualified Data.Text      as T
-import           Network.Wai.Middleware.Cors (cors, simpleCorsResourcePolicy, CorsResourcePolicy(..))
+import           Control.Monad.IO.Class                 (liftIO)
+import           Control.Monad.Trans.Reader             (runReaderT)
+import           Data.Maybe                             (fromMaybe)
+import qualified Data.Text                              as T
+import           Network.Wai.Middleware.Cors            (CorsResourcePolicy (..),
+                                                         cors,
+                                                         simpleCorsResourcePolicy)
+import           Network.Wai.Middleware.RequestLogger   (logStdoutDev)
 import           Network.Wai.Middleware.Servant.Options
-import           Network.Wai.Middleware.RequestLogger (logStdoutDev)
 
-import Network.Wai.Handler.Warp (setPort, setBeforeMainLoop, defaultSettings, runSettings)
+import           Network.Wai.Handler.Warp               (defaultSettings,
+                                                         runSettings,
+                                                         setBeforeMainLoop,
+                                                         setPort)
 import           Servant
 
-import           System.IO          (hPutStrLn, stderr, hSetBuffering, stdout, BufferMode(..))
+import           System.IO                              (BufferMode (..),
+                                                         hPutStrLn,
+                                                         hSetBuffering, stderr,
+                                                         stdout)
 
 ---------------------------------------------------------
+import           ApiTypes                               (Event (..),
+                                                         PageView (..),
+                                                         UserSession (..))
+import           Context                                (Ctx (..),
+                                                         readContextFromEnv)
 import           Db
-import           Context (Ctx(..), readContextFromEnv)
-import           ApiTypes (PageView(..), Event(..), UserSession(..))
-import           Types (AppM, withAuth, insertUserSession, insertPageView, insertEvent, getContext)
+import           Types                                  (AppM, getContext,
+                                                         insertEvent,
+                                                         insertPageView,
+                                                         insertUserSession,
+                                                         withAuth)
 
 type API
   = "event"
@@ -77,7 +92,7 @@ app ctx = logStdoutDev $
   cors (const $ Just policy) $
   provideOptions apiProxy $
   serve apiProxy $ hoistServer apiProxy (`runReaderT` ctx) server
-      where
+    where
       apiProxy = Proxy @API
       policy = simpleCorsResourcePolicy
                 { corsRequestHeaders = [ "content-type" ] }

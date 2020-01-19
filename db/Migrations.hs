@@ -1,22 +1,13 @@
-import Database.PostgreSQL.Simple (withTransaction)
-import Database.PostgreSQL.Simple.Migration (
-  runMigration
-  , MigrationContext(..)
-  , MigrationCommand(..)
-  , MigrationResult(..)
-  )
-
--- import qualified Data.ByteString.Char8 as BS8
--- import           System.Environment (getEnv)
-import           Context (Ctx(..), readContextFromEnv)
-
-
-
+import           Database.PostgreSQL.Simple           (withTransaction)
+import           Database.PostgreSQL.Simple.Migration (MigrationCommand (..),
+                                                       MigrationContext (..),
+                                                       MigrationResult (..),
+                                                       runMigration)
+import           Context                              (Ctx (..),
+                                                       readContextFromEnv)
 main :: IO ()
 main = do
-  -- connectionStr <- getEnv "DBCONN"
   ctx <- readContextFromEnv
-  -- let connectionStr = conn ctx
   let migrationDir = MigrationDirectory "db/migrations/"
   let con = conn ctx
   initResult <- withTransaction con $ runMigration $

@@ -11,21 +11,24 @@ module Types (
  , getContext
 ) where
 
-import           Control.Monad.Extra         (ifM)
-import           Control.Monad.IO.Class      (liftIO)
-import           Control.Monad.Trans.Class   (lift)
-import           Control.Monad.Trans.Except  (throwE)
-import           Control.Monad.Trans.Reader  (ReaderT, ask)
-import           Database.Beam               as B
-import qualified Database.Beam.Postgres      as Pg
+import           ApiTypes                                 (Event (..),
+                                                           PageView (..),
+                                                           UserSession (..),
+                                                           convertToDb)
+import           Context                                  (Ctx (..))
+import           Control.Monad.Extra                      (ifM)
+import           Control.Monad.IO.Class                   (liftIO)
+import           Control.Monad.Trans.Class                (lift)
+import           Control.Monad.Trans.Except               (throwE)
+import           Control.Monad.Trans.Reader               (ReaderT, ask)
+import qualified Data.Text                                as T
+import qualified Data.UUID.Types                          as UUID (nil)
+import           Database.Beam                            as B
 import           Database.Beam.Backend.SQL.BeamExtensions (runInsertReturningList)
-import qualified Data.Text      as T
-import qualified Data.UUID.Types as UUID (nil)
+import qualified Database.Beam.Postgres                   as Pg
 import           Db
 import           Servant
-import           Servant.Server (err403)
-import           Context (Ctx(..))
-import           ApiTypes (PageView(..), Event(..), UserSession(..), convertToDb)
+import           Servant.Server                           (err403)
 
 type AppM ctx = ReaderT ctx Handler
 

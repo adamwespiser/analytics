@@ -1,48 +1,20 @@
 module AnalyticsRouteSpec (AnalyticsRouteSpec.spec) where
 
-import           Helpers (withDB)
-import           Context (Ctx(..))
-import           Test.Hspec
-import Servant
-import ApiTypes
-import Types
+import           ApiTypes
+import           Context             (Ctx (..))
+import           Helpers             (withDB)
 
-import qualified Control.Concurrent               as C
-
-import qualified Control.Concurrent               as C
-import           Control.Concurrent.MVar
-import           Control.Exception                (bracket)
-import           Data.Aeson
-import           Data.Text                        (Text, unpack)
-import           GHC.Generics
-import           Network.HTTP.Client       hiding (Proxy)
-import           Network.HTTP.Types
-import           Network.Wai
-import qualified Network.Wai.Handler.Warp         as Warp
+import qualified Control.Concurrent  as C
+import           Data.Text           (unpack)
+import           Network.HTTP.Client hiding (Proxy)
 
 import           Servant
 import           Servant.Client
-import           Servant.Server
---xjjimport           Servant.QuickCheck
--- import           Servant.QuickCheck.Internal (serverDoesntSatisfy)
 
+import           Data.Either         (isLeft, isRight)
+import qualified Data.UUID.Types     as UUID (nil)
+import           Server              (API)
 import           Test.Hspec
-import           Data.Either (isLeft, isRight)
-import           Data.Function ((&))
---import           Test.Hspec.Wai
---import           Test.Hspec.Wai.Matcher
-import Server (API, app, readContextFromEnv)
-import System.IO (stderr, BufferMode(..), hPutStrLn, hSetBuffering, stdout)
-import qualified Data.UUID.Types as UUID (nil)
-
-{- API takes Event, PageView, UserSession -}
-data Endpoint = EpEvent | EpPageView | EpUserSession
-
-getUrl ::IO BaseUrl
-getUrl = parseBaseUrl $ unpack $ "http://localhost:8888/"
-  where fsub EpEvent = "event"
-        fsub EpPageView = "page"
-        fsub EpUserSession = "session"
 
 event :: Event
 event = Event {
