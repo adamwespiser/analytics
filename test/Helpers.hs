@@ -26,6 +26,8 @@ import            Context (Ctx(..), readContextFromEnvWithConnStr)
 import qualified Data.Text as T
 --- Setup and teardown helpers
 ---
+pg_tables = ["user_session", "page_view", "events"]
+
 data DBLogging = VERBOSE | SILENT deriving Read
 
 data TestType = Local | Travis deriving Read
@@ -46,7 +48,8 @@ withDB = beforeAll getDatabase . afterAll fst . after (truncateDb . snd)
   createTmpDatabase = do
     verbosity <- getEnv "DBLOGGING"
     (db, cleanup) <- startDb verbosity
-    config <- readContextFromEnvWithConnStr $  toConnectionString db
+    pguser <- getEnv "PGUSER"
+    config <- readContextFromEnvWithConnStr $ toConnectionString pguser db
     return (cleanup, config)
 
   -- https://stackoverflow.com/questions/5342440/reset-auto-increment-counter-in-postgres
@@ -54,26 +57,27 @@ withDB = beforeAll getDatabase . afterAll fst . after (truncateDb . snd)
   truncateDb config = execute_ (conn config) query_statment >> pure ()
    where
     query_statment =  Query $ BSC.pack $ T.unpack truncateStatement :: Query
-    tables = ["user_session", "pageview", "events"]
-    truncateStatement = "TRUNCATE TABLE " <> T.intercalate ", " tables <> " RESTART IDENTITY CASCADE"
+    truncateStatement = "TRUNCATE TABLE " <> T.intercalate ", " pg_tables <> " RESTART IDENTITY CASCADE"
     --truncateTables = rawExecute  truncateStatement []
 
-  toConnectionString :: DB -> T.Text
-  toConnectionString DB {..} =
+  toConnectionString :: String -> DB -> T.Text
+  toConnectionString defaultUser DB {..} =
     "postgresql://" <> user <> "@" <> host <> ":" <> Protolude.show port <> "/" <> cs oDbname
    where
     Options {..} = options
     host = cs $ fromMaybe "localhost" oHost
-    user = cs $ fromMaybe "postgres" oUser
+    user = cs $ fromMaybe defaultUser oUser
 
   startDb :: String -> IO (DB, IO ())
   startDb verbosity = mask $ \restore -> do
+    Prelude.putStrLn "startDB start"
     (outHandle, errHandle) <- case verbosity of
       "VERBOSE" -> pure (stdout, stderr)
       _ -> (,) <$> devNull <*> devNull -- "SILENT"
     db <- PG.startWithHandles PG.Localhost defaultOptions outHandle errHandle >>= either throwIO pure
-    conn <- Pg.connectPostgreSQL $ BSC.pack $ T.unpack $ toConnectionString db
-    restore (migrateDB conn >> pure (db, cleanup db))
+    pguser <- getEnv "PGUSER"
+    conn <- Pg.connectPostgreSQL $ BSC.pack $ T.unpack $ toConnectionString pguser db
+    restore (migrateDB conn >>  Prelude.putStrLn "startDb end" >> pure (db, cleanup db))
       `onException` cleanup db
    where
     devNull = openFile "/dev/null" WriteMode

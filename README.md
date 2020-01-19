@@ -23,7 +23,7 @@ Currently, this project is a work in progress, and the features currently comple
 - [ ] Devops code for deploy. Investigate Docker, NixOs, and Heroku. QUESTION: what's the best reproducible, cross-platform build system for end users?
 - [ ] Javascript Object for session with pageview/event methods, backed up by cookie store
 - [ ] Test environmental variables + DB setup
-- [ ] Test suite for [Servant Endpoints](https://docs.servant.dev/en/stable/cookbook/testing/Testing.html)
+- [x] Test suite for [Servant Endpoints](https://docs.servant.dev/en/stable/cookbook/testing/Testing.html)
 - [ ] Test suite for Javascript Integration (create user session, navigate through pages, check db)
 - [ ] Support for A/B test and MAB variant assignment
 - [ ] Add top-level domain field to pageview
