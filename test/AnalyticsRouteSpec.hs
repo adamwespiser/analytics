@@ -4,7 +4,6 @@ import           ApiTypes
 import           Context             (Ctx (..))
 import           Helpers             (withDB)
 
-import qualified Control.Concurrent  as C
 import           Data.Text           (unpack)
 import           Network.HTTP.Client hiding (Proxy)
 
@@ -34,18 +33,21 @@ gec :: (x :<|> y) -> (x, y)
 gec (a :<|> b) = (a, b)
 
 spec :: Spec
-spec = withDB $ describe  "withDB works" $ do
-      let myapi = client (Proxy :: Proxy API)
-      baseUrl <- runIO $ parseBaseUrl $ unpack "127.0.0.1:8888/"
-      manager <- runIO $ newManager defaultManagerSettings
-      runIO $ C.threadDelay 10000
-      let clientEnv = mkClientEnv manager baseUrl
+spec =
+  withDB $ do
+    let myapi = client (Proxy :: Proxy API)
+    baseUrl <- runIO $ parseBaseUrl $ unpack "127.0.0.1:8888/"
+    manager <- runIO $ newManager defaultManagerSettings
+    let clientEnv = mkClientEnv manager baseUrl
+    describe "withDB works" $ do
       it "creates db env" $ \(_, config) ->
         Context.port config `shouldBe` 8888
+    describe "auth" $ do
       it "auth fails on empty key" $ \(_, _) -> do
         let eventRoute = fst $ gec myapi
         result <- runClientM (eventRoute  (Just "") event) clientEnv
         result `shouldSatisfy` isLeft
+    describe "event" $ do
       it "event endpoint works" $ \(_, config) -> do
         let key = Just $ apiKey config
         let eventRoute = fst $ gec myapi
@@ -53,11 +55,13 @@ spec = withDB $ describe  "withDB works" $ do
         result `shouldBe` Right NoContent
       it "spacer test (XXX)" $ \(_, config) ->
         Context.port config `shouldBe` 8888
+    describe "pageview" $ do
       it "pageview endpoint works" $ \(_, config) -> do
         let pageviewRoute = fst $ gec $ snd $ gec myapi
         let key = Just $ apiKey config
         result <- runClientM (pageviewRoute key pageview) clientEnv
         result `shouldBe` Right NoContent
+    describe "session" $ do
       it "session endpoint works" $ \(_, config) -> do
         let sessionRoute = snd $ gec $ snd $ gec myapi
         let key = Just $ apiKey config

@@ -114,7 +114,14 @@ withDB = beforeAll getDatabase . aroundCtx_ runWarpServer . afterAll fst . after
           & Warp.setPort (Context.port ctx)
           & Warp.setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ Protolude.show (Context.port ctx)))
           & Warp.setOnException (\req ex -> hPutStrLn stderr ("warp exception " ++ Protolude.show req ++ " " ++ Protolude.show ex ))
-    bracket (C.forkIO $ hSetBuffering stdout LineBuffering >> (Warp.runSettings settings $ app ctx))
+        tdelay = C.threadDelay $ (1000000 :: Int)
+        serverThread app' = do
+          hSetBuffering stdout LineBuffering
+          Warp.runSettings settings $ app' ctx
+    bracket (C.forkIO $ serverThread $ app)
       C.killThread
-      (const action)
+      (const $ tdelay >> action)
+
+
+
 
