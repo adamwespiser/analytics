@@ -29,7 +29,6 @@ import           System.IO                            (BufferMode (..),
                                                        hSetBuffering, openFile,
                                                        stderr, stdout)
 import           Test.Hspec
-import           Test.Hspec.Core.Hooks                (aroundWith)
 --- Setup and teardown helpers
 ---
 pgTables :: [Text]
@@ -40,17 +39,17 @@ data DBLogging = VERBOSE | SILENT deriving Read
 data TestType = Local | Travis deriving Read
 
 withDB :: SpecWith (IO (), Ctx) -> Spec
-withDB = beforeAll getDatabase
-           . aroundCtx_ runWarpServer
+withDB = beforeAll getDbAndWarpServer
            . afterAll fst
            . afterAll (truncateDb . snd)
  where
-
-  aroundCtx_ ::
-    (Ctx -> IO () -> IO ()) ->
-    SpecWith (IO (), Ctx) ->
-    SpecWith (IO (), Ctx)
-  aroundCtx_ action = aroundWith $ \e a -> action (snd a) (e a)
+  getDbAndWarpServer :: IO (IO (), Ctx)
+  getDbAndWarpServer = do
+    (_, config) <- getDatabase
+    _ <- C.forkIO $ runWarpServer config
+    -- Wait 2 seconds for the warp server to boot
+    C.threadDelay 2000000
+    pure (pure (), config)
 
   getDatabase :: IO (IO (), Ctx)
   getDatabase = read @TestType <$> (getEnv "TEST_TYPE") >>= \case
@@ -67,9 +66,7 @@ withDB = beforeAll getDatabase
     (db, cleanup) <- startDb verbosity
     pguser <- getEnv "PGUSER"
     config <- readContextFromEnvWithConnStr $ toConnectionString pguser db
-    -- XXX making an additional connection, we should just pass one through...
-    conn <- Pg.connectPostgreSQL $ BSC.pack $ T.unpack $ toConnectionString pguser db
-    return (cleanup, config { conn})
+    return (cleanup, config)
 
   -- https://stackoverflow.com/questions/5342440/reset-auto-increment-counter-in-postgres
   truncateDb :: Ctx -> IO ()
@@ -116,19 +113,16 @@ withDB = beforeAll getDatabase
           MigrationContext migrationDir True con
         Prelude.print migrationResult
 
-  runWarpServer :: Ctx -> IO () -> IO ()
-  runWarpServer ctx action = do
+  runWarpServer :: Ctx -> IO ()
+  runWarpServer ctx = do
     let settings = Warp.defaultSettings
           & Warp.setPort (Context.port ctx)
           & Warp.setBeforeMainLoop
             (hPutStrLn stderr ("listening on port " ++ Protolude.show (Context.port ctx)))
           & Warp.setOnException
               (\req ex -> hPutStrLn stderr ("warp exception " ++ Protolude.show req ++ " " ++ Protolude.show ex ))
-        tdelay = C.threadDelay $ (2000000 :: Int)
         serverThread app' = do
           hSetBuffering stdout LineBuffering
           Warp.runSettings settings $ app' ctx
-    bracket (C.forkIO $ serverThread $ app)
-      C.killThread
-      (const $ tdelay >> action)
+    (C.forkIO $ serverThread $ app) >> pure ()
 
