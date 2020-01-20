@@ -102,12 +102,10 @@ runAppWithContext ctx =
   let settings = setPort (port ctx) $ defaultSettings
   in runSettings settings (app ctx)
 
-
 runMain :: IO ()
 runMain = do
   hSetBuffering stdout NoBuffering
   ctx <- readContextFromEnv
-
   let settings = setPort (port ctx) $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show (port ctx))) $
         defaultSettings

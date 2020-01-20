@@ -40,16 +40,22 @@ data DBLogging = VERBOSE | SILENT deriving Read
 data TestType = Local | Travis deriving Read
 
 withDB :: SpecWith (IO (), Ctx) -> Spec
-withDB = beforeAll getDatabase . aroundCtx_ runWarpServer . afterAll fst . afterAll (truncateDb . snd)
+withDB = beforeAll getDatabase
+           . aroundCtx_ runWarpServer
+           . afterAll fst
+           . afterAll (truncateDb . snd)
  where
 
-  aroundCtx_ :: (Ctx -> IO () -> IO ()) -> SpecWith (IO (), Ctx) -> SpecWith (IO (), Ctx)
+  aroundCtx_ ::
+    (Ctx -> IO () -> IO ()) ->
+    SpecWith (IO (), Ctx) ->
+    SpecWith (IO (), Ctx)
   aroundCtx_ action = aroundWith $ \e a -> action (snd a) (e a)
 
   getDatabase :: IO (IO (), Ctx)
-  getDatabase = getEnv "TEST_TYPE" >>= \case
-    "Local" -> createTmpDatabase
-    _ -> do -- "TRAVIS"
+  getDatabase = read @TestType <$> (getEnv "TEST_TYPE") >>= \case
+    Local -> createTmpDatabase
+    Travis -> do -- "TRAVIS"
       let connStr = "postgresql://postgres@localhost/travis_ci_test"
       config <- readContextFromEnvWithConnStr $ T.pack connStr
       migrateDB $ conn config
@@ -57,7 +63,7 @@ withDB = beforeAll getDatabase . aroundCtx_ runWarpServer . afterAll fst . after
 
   createTmpDatabase :: IO (IO (), Ctx)
   createTmpDatabase = do
-    verbosity <- getEnv "DBLOGGING"
+    verbosity <- read @DBLogging <$> getEnv "DBLOGGING"
     (db, cleanup) <- startDb verbosity
     pguser <- getEnv "PGUSER"
     config <- readContextFromEnvWithConnStr $ toConnectionString pguser db
@@ -70,7 +76,8 @@ withDB = beforeAll getDatabase . aroundCtx_ runWarpServer . afterAll fst . after
   truncateDb config = execute_ (conn config) query_statment >> pure ()
    where
     query_statment =  Query $ BSC.pack $ T.unpack truncateStatement :: Query
-    truncateStatement = "TRUNCATE TABLE " <> T.intercalate ", " pgTables <> " RESTART IDENTITY CASCADE"
+    truncateStatement =
+      "TRUNCATE TABLE " <> T.intercalate ", " pgTables <> " RESTART IDENTITY CASCADE"
 
   toConnectionString :: String -> DB -> T.Text
   toConnectionString defaultUser DB {..} =
@@ -80,12 +87,13 @@ withDB = beforeAll getDatabase . aroundCtx_ runWarpServer . afterAll fst . after
     host = cs $ fromMaybe "localhost" oHost
     user = cs $ fromMaybe defaultUser oUser
 
-  startDb :: String -> IO (DB, IO ())
+  startDb :: DBLogging -> IO (DB, IO ())
   startDb verbosity = mask $ \restore -> do
     (outHandle, errHandle) <- case verbosity of
-      "VERBOSE" -> pure (stdout, stderr)
-      _         -> (,) <$> devNull <*> devNull -- "SILENT"
-    db <- PG.startWithHandles PG.Localhost defaultOptions outHandle errHandle >>= either throwIO pure
+      VERBOSE -> pure (stdout, stderr)
+      SILENT  -> (,) <$> devNull <*> devNull
+    db <- PG.startWithHandles PG.Localhost defaultOptions outHandle errHandle
+            >>= either throwIO pure
     pguser <- getEnv "PGUSER"
     conn <- Pg.connectPostgreSQL $ BSC.pack $ T.unpack $ toConnectionString pguser db
     restore (migrateDB conn >> pure (db, cleanup db))
@@ -112,16 +120,15 @@ withDB = beforeAll getDatabase . aroundCtx_ runWarpServer . afterAll fst . after
   runWarpServer ctx action = do
     let settings = Warp.defaultSettings
           & Warp.setPort (Context.port ctx)
-          & Warp.setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ Protolude.show (Context.port ctx)))
-          & Warp.setOnException (\req ex -> hPutStrLn stderr ("warp exception " ++ Protolude.show req ++ " " ++ Protolude.show ex ))
-        tdelay = C.threadDelay $ (1000000 :: Int)
+          & Warp.setBeforeMainLoop
+            (hPutStrLn stderr ("listening on port " ++ Protolude.show (Context.port ctx)))
+          & Warp.setOnException
+              (\req ex -> hPutStrLn stderr ("warp exception " ++ Protolude.show req ++ " " ++ Protolude.show ex ))
+        tdelay = C.threadDelay $ (2000000 :: Int)
         serverThread app' = do
           hSetBuffering stdout LineBuffering
           Warp.runSettings settings $ app' ctx
     bracket (C.forkIO $ serverThread $ app)
       C.killThread
       (const $ tdelay >> action)
-
-
-
 

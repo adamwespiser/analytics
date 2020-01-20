@@ -2,7 +2,6 @@
 [![Build Status](https://travis-ci.org/adamwespiser/analytics.svg?branch=master)](https://travis-ci.org/adamwespiser/analytics)
 
 
-
 ## Philosophy
 Data helps us make better decisions, and the tools that enable this should be easy to understand, transparent, and fully controllable.
 
@@ -20,10 +19,10 @@ Currently, this project is a work in progress, and the features currently comple
  - SQL code to intialize DB
 
 ### TODO
-- [ ] Devops code for deploy. Investigate Docker, NixOs, and Heroku. QUESTION: what's the best reproducible, cross-platform build system for end users?
-- [ ] Javascript Object for session with pageview/event methods, backed up by cookie store
-- [ ] Test environmental variables + DB setup
+- [x] Devops code for build -> TravisCI integration w/ mock test suites
+- [x] Test environmental variables + DB setup
 - [x] Test suite for [Servant Endpoints](https://docs.servant.dev/en/stable/cookbook/testing/Testing.html)
+- [ ] Javascript Object for session with pageview/event methods, backed up by cookie store
 - [ ] Test suite for Javascript Integration (create user session, navigate through pages, check db)
 - [ ] Support for A/B test and MAB variant assignment
 - [ ] Add top-level domain field to pageview
@@ -56,5 +55,9 @@ For the analytics server.
 4. In heroku, set environment variables, API_KEY, CORS_ORIGIN, DBCONN. Note, on heroku, the environmental variable `PORT` has to be set by the heroku environment.
 5. on cmd line, `$ heroku git:remote -a [project-name]`
 
-
+#### Local Test Env
+The local tests will spin up a postgres instance, and a warp server for the sake of testing. This is designed to mock the TravisCI environment. To run the tests with the proper configuration variables set:    
+```
+$ source config/test-local.env && stack test
+```
 
