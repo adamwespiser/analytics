@@ -1,6 +1,7 @@
 module Utils (
   isLeft
   , isRight
+  , headMay
 ) where
 
 
@@ -14,3 +15,8 @@ isLeft _        = False
 
 isRight :: Either a b -> Bool
 isRight = not . isLeft
+
+-- headMay, borrowed from Protolude
+headMay :: [a] -> Maybe a
+headMay = Prelude.foldr (\x _ -> Just x) Nothing
+
