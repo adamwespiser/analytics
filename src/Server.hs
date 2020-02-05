@@ -22,6 +22,8 @@ import           Network.Wai.Handler.Warp               (defaultSettings,
                                                          setBeforeMainLoop,
                                                          setPort)
 import           Servant
+import           Servant.API.Generic
+import           Servant.Server.Generic
 
 import           System.IO                              (BufferMode (..),
                                                          hPutStrLn,
@@ -54,9 +56,48 @@ type API
       :> QueryParam "auth" T.Text
       :> Get '[JSON] UserSession
 
+data Routes route = Routes
+ { event :: route :- "event" :> QueryParam "auth" T.Text :> ReqBody '[JSON] Event :> Post '[JSON] NoContent
+ , page :: route :- "page" :> QueryParam "auth" T.Text :> ReqBody '[JSON] PageView :> Post '[JSON] NoContent
+ , session :: route :- "session" :> QueryParam "auth" T.Text :> Get '[JSON] UserSession
+ } deriving (Generic)
 
-server :: ServerT API (AppM Ctx)
-server =
+server :: Routes (AsServerT (AppM Ctx))
+server = Routes
+ { event = postEvent
+ , page = postPageView
+ , session = getUserSession
+ }
+  where
+    postEvent :: Maybe T.Text -> Event -> AppM Ctx NoContent
+    postEvent auth event@Event{..} =
+      withAuth auth $ do
+        Ctx{..} <- getContext
+        liftIO $ print event
+        insertEvent conn event
+        return NoContent
+    postPageView :: Maybe T.Text -> PageView -> AppM Ctx NoContent
+    postPageView auth pageview@PageView{..} =
+      withAuth auth $ do
+        Ctx{..} <- getContext
+        liftIO $ print pageview
+        insertPageView conn pageview
+        return NoContent
+    getUserSession :: Maybe T.Text -> AppM Ctx UserSession
+    getUserSession auth =
+      withAuth auth $ do
+        Ctx{..} <- getContext
+        status <- insertUserSession conn
+        return $ UserSession $  ( usersessionId . getSingleResult) status
+    getSingleResult lst =
+        fromMaybe (error $ "storeRun: single item not returned: " ++ show lst )
+            $ headMay lst
+    headMay :: [a] -> Maybe a
+    headMay = Prelude.foldr (\x _ -> Just x) Nothing
+
+{-
+server' :: ServerT Routes (AppM Ctx)
+server' =
   postEvent :<|>
   postPageView :<|>
   getUserSession
@@ -86,16 +127,24 @@ server =
             $ headMay lst
     headMay :: [a] -> Maybe a
     headMay = Prelude.foldr (\x _ -> Just x) Nothing
+-}
 
 app :: Ctx -> Application
 app ctx = logStdoutDev $
   cors (const $ Just policy) $
   provideOptions apiProxy $
-  serve apiProxy $ hoistServer apiProxy (`runReaderT` ctx) server
-    where
-      apiProxy = Proxy @API
+  genericServeT (natTrans ctx) server
+  where
+      apiProxy :: Proxy (ToServantApi Routes)
+      apiProxy = genericApi (Proxy :: Proxy Routes)
       policy = simpleCorsResourcePolicy
                 { corsRequestHeaders = [ "content-type" ] }
+
+natTrans :: ctx -> AppM ctx a -> Handler a
+natTrans ctx x = runReaderT x ctx
+
+
+--type ApiProxy =(ToServantApi Routes)
 
 runAppWithContext :: Ctx -> IO ()
 runAppWithContext ctx =

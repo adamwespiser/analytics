@@ -27,7 +27,7 @@ packages:
     hackage: postgres-options-0.1.0.1@sha256:42331140b3c2e608c87005bc7636271b53db20fce7fd091cd4341128db3b47ad,960
 snapshots:
 - completed:
-    size: 523700
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/7.yaml
-    sha256: 8e3f3c894be74d71fa4bf085e0a8baae7e4d7622d07ea31a52736b80f8b9bb1a
-  original: lts-14.7
+    size: 524164
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/22.yaml
+    sha256: 7ad8f33179b32d204165a3a662c6269464a47a7e65a30abc38d01b5a38ec42c0
+  original: lts-14.22
