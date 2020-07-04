@@ -2,24 +2,14 @@ module ApiTypes (
     Event(..)
   , PageView(..)
   , UserSession(..)
-  , ToDatabase
-  , convertToDb
 ) where
 
 import           Data.Aeson             (FromJSON, ToJSON)
 import qualified Data.Text              as T
 import           Data.UUID.Types        (UUID)
-import           Database.Beam          as B
-import qualified Database.Beam.Postgres as Pg
-import qualified Database.Beam.Query    as BeamQ
 import           GHC.Generics           (Generic)
 
 ------------------------------------------------------
-import           Db                     (EventsDBT (..), PageViewDBT (..),
-                                         UserSessionDBT (..))
-
-class ToDatabase a b where
-  convertToDb :: a -> b
 
 newtype UserSession = UserSession {
   userSessionId :: UUID
@@ -42,7 +32,7 @@ data PageView = PageView {
 instance ToJSON PageView
 instance FromJSON PageView
 
-
+{-
 instance ToDatabase UserSession (UserSessionDBT (BeamQ.QExpr Pg.Postgres s)) where
   convertToDb _ = UserSessionDB B.default_ Pg.now_
 
@@ -63,4 +53,5 @@ instance ToDatabase Event (EventsDBT (BeamQ.QExpr Pg.Postgres s)) where
       (BeamQ.val_ evCategory)
       (BeamQ.val_ evLabel)
       Pg.now_
+-}
 

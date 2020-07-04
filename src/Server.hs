@@ -46,6 +46,7 @@ import           Types                                  (AppM, getContext,
                                                          insertUserSession,
                                                          withAuth)
 import qualified Utils                                  (headMay)
+import qualified Data.UUID.Types as UUID (nil)
 data Routes route = Routes
  { event :: route
      :- "event"
@@ -75,21 +76,21 @@ server = Routes
       withAuth auth $ do
         Ctx{ conn } <- getContext
         liftIO $ print evt
-        insertEvent conn evt
+        -- insertEvent conn evt
         return NoContent
     page :: Maybe T.Text -> PageView -> AppM Ctx NoContent
     page auth pageview@PageView{..} =
       withAuth auth $ do
         Ctx{ conn } <- getContext
         liftIO $ print pageview
-        insertPageView conn pageview
+        -- insertPageView conn pageview
         return NoContent
     session :: Maybe T.Text -> AppM Ctx UserSession
     session auth =
       withAuth auth $ do
         Ctx{ conn } <- getContext
-        status <- insertUserSession conn
-        return $ UserSession $ (usersessionId . getSingleResult) status
+        -- status <- insertUserSession conn
+        return $ UserSession UUID.nil
     getSingleResult lst =
         -- TODO code smell: headMay then toss an error?
         fromMaybe (error $ "storeRun: single item not returned: " ++ show lst )

@@ -1,15 +1,7 @@
 module Db
     (
-      PageViewDBT(..)
-    , PageViewId
-    , EventsDBT(..)
-    , EventsId
-    , UserSessionDBT(..)
-    , UserSessionId
-    , AnalyticsDb(..)
-    , analyticsDb
     ) where
-
+{-
 import GHC.Generics (Generic)
 import Database.Beam.Schema (
     Beamable
@@ -91,4 +83,4 @@ analyticsDb =
       , dbPageView    = setEntityName "page_view"
       , dbUserSession = setEntityName "user_session"
     }
-
+-}

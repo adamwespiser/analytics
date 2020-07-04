@@ -1,3 +1,6 @@
+
+main = putStrLn "no upgraded yet"
+{-
 import           Database.PostgreSQL.Simple           (withTransaction)
 import           Database.PostgreSQL.Simple.Migration (MigrationCommand (..),
                                                        MigrationContext (..),
@@ -20,3 +23,4 @@ main = do
       migrationResult <- withTransaction con $ runMigration $
         MigrationContext migrationDir True con
       print migrationResult
+-}
