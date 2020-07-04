@@ -22,7 +22,9 @@ import           Network.Wai.Handler.Warp               (defaultSettings,
                                                          setBeforeMainLoop,
                                                          setPort)
 import           Servant
-import           Servant.API.Generic                    ((:-), ToServantApi, Generic, genericApi)
+import           Servant.API.Generic                    ((:-), Generic,
+                                                         ToServantApi,
+                                                         genericApi)
 import           Servant.Server.Generic                 (AsServerT,
                                                          genericServeT)
 

@@ -60,7 +60,6 @@ instance MonadDb (AppM Ctx)  where
   insertUserSession conn = liftIO $ Pg.runBeamPostgresDebug putStrLn conn  $ do
     insertValue <-
       runInsertReturningList $ insert (dbUserSession analyticsDb) $ insertExpressions [UserSessionDB B.default_ Pg.now_]
-    liftIO $ print insertValue
     pure insertValue
   fetchUserSession _ = liftIO $ return $ UserSession UUID.nil
   insertPageView conn pageview = liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
