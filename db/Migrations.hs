@@ -1,5 +1,9 @@
+import Squeal.PostgreSQL
+import Squeal.Schema
+import Squeal.Migration.V1 (initMigration)
 
-main = putStrLn "no upgraded yet"
+
+main = printSQL initMigration
 {-
 import           Database.PostgreSQL.Simple           (withTransaction)
 import           Database.PostgreSQL.Simple.Migration (MigrationCommand (..),
