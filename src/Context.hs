@@ -16,7 +16,8 @@ data Ctx = Ctx {
   conn          :: Pool (K Connection DB),
   port          :: Int,
   apiKey        :: T.Text,
-  corsReqOrigin :: T.Text
+  corsReqOrigin :: T.Text,
+  connStr       :: BSC.ByteString --for migration
 }
 
 defaultMakePool :: BSC.ByteString ->  IO (Pool (K Connection DB))
@@ -28,7 +29,8 @@ readContextFromEnv =
     (BSC.pack <$> getEnv "DBCONN" >>= defaultMakePool) <*>
     (fromMaybe (error "Env var PORT must be set") . readMaybe <$> getEnv "PORT") <*>
     (T.pack <$> getEnv "API_KEY") <*>
-    (T.pack <$> getEnv "CORS_ORIGIN")
+    (T.pack <$> getEnv "CORS_ORIGIN") <*>
+    (BSC.pack <$> getEnv "DBCONN")
 
 readContextFromEnvWithConnStr :: T.Text -> IO Ctx
 readContextFromEnvWithConnStr conn =
@@ -37,4 +39,5 @@ readContextFromEnvWithConnStr conn =
       (defaultMakePool connStr) <*>
       (fromMaybe (error "Env var PORT must be set") . readMaybe <$> getEnv "PORT") <*>
       (T.pack <$> getEnv "API_KEY") <*>
-      (T.pack <$> getEnv "CORS_ORIGIN")
+      (T.pack <$> getEnv "CORS_ORIGIN") <*>
+      (BSC.pack <$> getEnv "DBCONN")
