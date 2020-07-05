@@ -2,3 +2,6 @@
 analytics.cabal
 .DS_Store
 *~
+tags
+dist-newstyle/
+hie.yaml
