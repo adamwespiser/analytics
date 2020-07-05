@@ -80,7 +80,7 @@ class (Monad m, MonadThrow m, MonadReader Ctx m) => MonadAuth m where
 instance (schemas ~ DB) => MonadAuth (AppT Ctx (PQ schemas schemas IO))  where
   withAuth auth f =
     ifM (isCorrectAuth auth) f
-        (lift $ throwM $ TServerError 403)
+        (lift $ throwM $ err403)
     where
       isCorrectAuth :: (MonadReader Ctx m) => Maybe T.Text -> m Bool
       isCorrectAuth auth' = do
@@ -108,21 +108,4 @@ instance (schemas ~ DB) => MonadDb (AppT Ctx (PQ schemas schemas IO))  where
   insertPageView _ = undefined
   insertEvent _ = undefined
 
-
-data MyException = TServerError Integer
-    deriving Show
-instance Exception MyException
-
-{-
-instance MonadDb (AppM Ctx)  where
-  insertUserSession conn = liftIO $ Pg.runBeamPostgresDebug putStrLn conn  $ do
-    insertValue <-
-      runInsertReturningList $ insert (dbUserSession analyticsDb) $ insertExpressions [UserSessionDB B.default_ Pg.now_]
-    pure insertValue
-  fetchUserSession _ = liftIO $ return $ UserSession UUID.nil
-  insertPageView conn pageview = liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
-    insert (dbPageView analyticsDb) $ insertExpressions [convertToDb pageview]
-  insertEvent conn event = liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
-    insert (dbEvents analyticsDb) $ insertExpressions [convertToDb event]
--}
 
