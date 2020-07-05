@@ -7,7 +7,7 @@ module Server (
   , runMain
 ) where
 
-import           Control.Monad.IO.Class                 (liftIO, MonadIO)
+import           Control.Monad.IO.Class                 (MonadIO, liftIO)
 import           Control.Monad.Trans.Reader             (runReaderT)
 import           Data.Maybe                             (fromMaybe)
 import qualified Data.Text                              as T
@@ -39,18 +39,18 @@ import           ApiTypes                               (Event (..),
                                                          UserSession (..))
 import           Context                                (Ctx (..),
                                                          readContextFromEnv)
-import           Db
-import           Types                                  (AppM, getContext,
-                                                         insertEvent,
-                                                         insertPageView,
-                                                         insertUserSession, HasContext,MonadAuth,
-                                                         withAuth, App, runAppInTransaction)
+import           Control.Monad                          ((<=<))
+import qualified Data.UUID.Types                        as UUID (nil)
+import qualified Squeal.PostgreSQL                      as Sq
+import           Squeal.Query                           (insertEventPq,
+                                                         insertPageViewPq,
+                                                         insertSessionPq)
+import           Squeal.Schema                          (DB)
+import           Types                                  (App, HasContext,
+                                                         MonadAuth, getContext,
+                                                         runAppInTransaction,
+                                                         withAuth)
 import qualified Utils                                  (headMay)
-import qualified Data.UUID.Types as UUID (nil)
-import Control.Monad ((<=<))
-import Squeal.Query (insertEventPq, insertPageViewPq, insertSessionPq)
-import qualified Squeal.PostgreSQL as Sq
-import Squeal.Schema (DB)
 
 data Routes route = Routes
  { event :: route
@@ -76,31 +76,42 @@ server = Routes
  , session
  }
   where
-    event :: (Monad m, HasContext m, MonadIO m, MonadAuth m, Sq.MonadPQ DB m) => Maybe T.Text -> Event -> m NoContent
+    event ::
+         ( Monad m
+         , MonadIO m
+         , HasContext m
+         , MonadAuth m
+         , Sq.MonadPQ DB m)
+       => Maybe T.Text -> Event -> m NoContent
     event auth evt@Event{..} =
       withAuth auth $ do
         Ctx{ conn } <- getContext
-        liftIO $ print evt
         Sq.executeParams insertEventPq evt
         return NoContent
-    page :: (Monad m, HasContext m, MonadIO m, MonadAuth m, Sq.MonadPQ DB m) => Maybe T.Text -> PageView -> m NoContent
+    page ::
+        ( Monad m
+        , MonadIO m
+        , HasContext m
+        , MonadAuth m
+        , Sq.MonadPQ DB m)
+      => Maybe T.Text -> PageView -> m NoContent
     page auth pageview@PageView{..} =
       withAuth auth $ do
         Ctx{ conn } <- getContext
-        liftIO $ print pageview
         Sq.executeParams insertPageViewPq pageview
         return NoContent
-    session :: (Monad m, HasContext m, MonadIO m, MonadAuth m, Sq.MonadPQ DB m) => Maybe T.Text -> m UserSession
+    session ::
+        ( Monad m
+        , MonadIO m
+        , HasContext m
+        , MonadAuth m
+        , Sq.MonadPQ DB m)
+      => Maybe T.Text -> m UserSession
     session auth =
       withAuth auth $ do
         Ctx{ conn } <- getContext
-        -- status <- insertUserSession conn
         Sq.execute insertSessionPq
         return $ UserSession UUID.nil
-    getSingleResult lst =
-        -- TODO code smell: headMay then toss an error?
-        fromMaybe (error $ "storeRun: single item not returned: " ++ show lst )
-            $ Utils.headMay lst
 
 app :: Ctx -> Application
 app ctx = logStdoutDev $
@@ -120,9 +131,6 @@ app ctx = logStdoutDev $
       .   runAppInTransaction ctx
 
 type API = ToServantApi Routes
-
-natTrans :: ctx -> AppM ctx a -> Handler a
-natTrans ctx x = runReaderT x ctx
 
 runAppWithContext :: Ctx -> IO ()
 runAppWithContext ctx =

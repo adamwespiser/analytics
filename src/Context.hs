@@ -4,14 +4,13 @@ module Context (
   , readContextFromEnvWithConnStr
 ) where
 
-import qualified Data.ByteString.Char8  as BSC
-import           Data.Maybe             (fromMaybe)
-import qualified Data.Text              as T
-import           System.Environment     (getEnv)
-import           Text.Read              (readMaybe)
+import qualified Data.ByteString.Char8 as BSC
+import           Data.Maybe            (fromMaybe)
+import qualified Data.Text             as T
 import           Squeal.PostgreSQL
-import           Squeal.Schema          (DB)
-
+import           Squeal.Schema         (DB)
+import           System.Environment    (getEnv)
+import           Text.Read             (readMaybe)
 
 data Ctx = Ctx {
   conn          :: Pool (K Connection DB),
@@ -19,7 +18,6 @@ data Ctx = Ctx {
   apiKey        :: T.Text,
   corsReqOrigin :: T.Text
 }
-
 
 defaultMakePool :: BSC.ByteString ->  IO (Pool (K Connection DB))
 defaultMakePool connStr = createConnectionPool connStr 5 10 10
