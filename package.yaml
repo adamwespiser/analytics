@@ -29,9 +29,11 @@ default-extensions:
 - DataKinds
 - DeriveAnyClass
 - DeriveGeneric
+- DerivingStrategies
 - FlexibleContexts
 - FlexibleInstances
 - GADTs
+- GeneralizedNewtypeDeriving 
 - LambdaCase
 - MultiParamTypeClasses
 - NamedFieldPuns
@@ -50,6 +52,8 @@ dependencies:
 - base >= 4.7
 - aeson >= 1.4.5.0
 - bytestring >= 0.10.8.2
+- exceptions
+- generics-sop
 - http-client
 - http-types
 - extra >= 1.6.18

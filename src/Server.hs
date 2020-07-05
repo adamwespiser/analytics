@@ -7,7 +7,7 @@ module Server (
   , runMain
 ) where
 
-import           Control.Monad.IO.Class                 (liftIO)
+import           Control.Monad.IO.Class                 (liftIO, MonadIO)
 import           Control.Monad.Trans.Reader             (runReaderT)
 import           Data.Maybe                             (fromMaybe)
 import qualified Data.Text                              as T
@@ -43,10 +43,12 @@ import           Db
 import           Types                                  (AppM, getContext,
                                                          insertEvent,
                                                          insertPageView,
-                                                         insertUserSession,
-                                                         withAuth)
+                                                         insertUserSession, HasContext,MonadAuth,
+                                                         withAuth, App, runAppInTransaction)
 import qualified Utils                                  (headMay)
 import qualified Data.UUID.Types as UUID (nil)
+import Control.Monad ((<=<))
+
 data Routes route = Routes
  { event :: route
      :- "event"
@@ -64,28 +66,28 @@ data Routes route = Routes
      :> Get '[JSON] UserSession
  } deriving (Generic)
 
-server :: Routes (AsServerT (AppM Ctx))
+server :: Routes (AsServerT App)
 server = Routes
  { event
  , page
  , session
  }
   where
-    event :: Maybe T.Text -> Event -> AppM Ctx NoContent
+    event :: (Monad m, HasContext m, MonadIO m, MonadAuth m) => Maybe T.Text -> Event -> m NoContent
     event auth evt@Event{..} =
       withAuth auth $ do
         Ctx{ conn } <- getContext
         liftIO $ print evt
         -- insertEvent conn evt
         return NoContent
-    page :: Maybe T.Text -> PageView -> AppM Ctx NoContent
+    page :: (Monad m, HasContext m, MonadIO m, MonadAuth m) => Maybe T.Text -> PageView -> m NoContent
     page auth pageview@PageView{..} =
       withAuth auth $ do
         Ctx{ conn } <- getContext
         liftIO $ print pageview
         -- insertPageView conn pageview
         return NoContent
-    session :: Maybe T.Text -> AppM Ctx UserSession
+    session :: (Monad m, HasContext m, MonadIO m, MonadAuth m) => Maybe T.Text -> m UserSession
     session auth =
       withAuth auth $ do
         Ctx{ conn } <- getContext
@@ -100,17 +102,25 @@ app :: Ctx -> Application
 app ctx = logStdoutDev $
   cors (const $ Just policy) $
   provideOptions apiProxy $
-  genericServeT (natTrans ctx) server
+  genericServeT toHandler server
   where
-      apiProxy :: Proxy API
-      apiProxy = genericApi (Proxy :: Proxy Routes)
-      policy = simpleCorsResourcePolicy
-                { corsRequestHeaders = [ "content-type" ] }
+    apiProxy :: Proxy API
+    apiProxy = genericApi (Proxy :: Proxy Routes)
+    policy = simpleCorsResourcePolicy
+              { corsRequestHeaders = [ "content-type" ] }
+    toHandler :: App a -> Handler a
+    toHandler =
+      either throwError pure
+      <=< liftIO
+      .   fmap Right
+      .   runAppInTransaction ctx
 
 type API = ToServantApi Routes
 
 natTrans :: ctx -> AppM ctx a -> Handler a
 natTrans ctx x = runReaderT x ctx
+
+
 
 runAppWithContext :: Ctx -> IO ()
 runAppWithContext ctx =
