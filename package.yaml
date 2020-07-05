@@ -33,7 +33,7 @@ default-extensions:
 - FlexibleContexts
 - FlexibleInstances
 - GADTs
-- GeneralizedNewtypeDeriving 
+- GeneralizedNewtypeDeriving
 - LambdaCase
 - MultiParamTypeClasses
 - NamedFieldPuns

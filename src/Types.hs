@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 module Types (
    AppM
  , App
@@ -59,10 +60,7 @@ type App = AppT Ctx (PQ DB DB IO)
 instance MonadTrans (AppT r) where
   lift = AppT . lift
 
-
-
 type AppM ctx = ReaderT ctx Handler
-
 
 runApp :: Ctx -> App a -> PQ DB DB IO a
 runApp cfg = flip runReaderT cfg . unAppT
@@ -70,6 +68,10 @@ runApp cfg = flip runReaderT cfg . unAppT
 runAppInTransaction :: Ctx -> App a -> IO a
 runAppInTransaction ctx = usingConnectionPool (conn ctx) . runApp ctx
 
+instance (schemas ~ DB, MonadPQ schemas m) => MonadPQ schemas (AppT r m) where
+  executeParams q = lift . executeParams q
+  executePrepared q = lift . executePrepared q
+  executePrepared_ q = lift . executePrepared_ q
 
 ----------------------------------
 class (Monad m, MonadThrow m, MonadReader Ctx m) => MonadAuth m where
@@ -109,7 +111,6 @@ instance (schemas ~ DB) => MonadDb (AppT Ctx (PQ schemas schemas IO))  where
 
 data MyException = TServerError Integer
     deriving Show
-
 instance Exception MyException
 
 {-

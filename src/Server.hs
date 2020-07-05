@@ -48,6 +48,9 @@ import           Types                                  (AppM, getContext,
 import qualified Utils                                  (headMay)
 import qualified Data.UUID.Types as UUID (nil)
 import Control.Monad ((<=<))
+import Squeal.Query (insertEventPq, insertPageViewPq, insertSessionPq)
+import qualified Squeal.PostgreSQL as Sq
+import Squeal.Schema (DB)
 
 data Routes route = Routes
  { event :: route
@@ -73,25 +76,26 @@ server = Routes
  , session
  }
   where
-    event :: (Monad m, HasContext m, MonadIO m, MonadAuth m) => Maybe T.Text -> Event -> m NoContent
+    event :: (Monad m, HasContext m, MonadIO m, MonadAuth m, Sq.MonadPQ DB m) => Maybe T.Text -> Event -> m NoContent
     event auth evt@Event{..} =
       withAuth auth $ do
         Ctx{ conn } <- getContext
         liftIO $ print evt
-        -- insertEvent conn evt
+        Sq.executeParams insertEventPq evt
         return NoContent
-    page :: (Monad m, HasContext m, MonadIO m, MonadAuth m) => Maybe T.Text -> PageView -> m NoContent
+    page :: (Monad m, HasContext m, MonadIO m, MonadAuth m, Sq.MonadPQ DB m) => Maybe T.Text -> PageView -> m NoContent
     page auth pageview@PageView{..} =
       withAuth auth $ do
         Ctx{ conn } <- getContext
         liftIO $ print pageview
-        -- insertPageView conn pageview
+        Sq.executeParams insertPageViewPq pageview
         return NoContent
-    session :: (Monad m, HasContext m, MonadIO m, MonadAuth m) => Maybe T.Text -> m UserSession
+    session :: (Monad m, HasContext m, MonadIO m, MonadAuth m, Sq.MonadPQ DB m) => Maybe T.Text -> m UserSession
     session auth =
       withAuth auth $ do
         Ctx{ conn } <- getContext
         -- status <- insertUserSession conn
+        Sq.execute insertSessionPq
         return $ UserSession UUID.nil
     getSingleResult lst =
         -- TODO code smell: headMay then toss an error?
@@ -120,8 +124,6 @@ type API = ToServantApi Routes
 natTrans :: ctx -> AppM ctx a -> Handler a
 natTrans ctx x = runReaderT x ctx
 
-
-
 runAppWithContext :: Ctx -> IO ()
 runAppWithContext ctx =
   let settings = setPort (port ctx) $ defaultSettings
@@ -135,4 +137,3 @@ runMain = do
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show (port ctx))) $
         defaultSettings
   runSettings settings (app ctx)
-
