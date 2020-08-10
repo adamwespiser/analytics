@@ -1,69 +1,74 @@
+{-# LANGUAGE UndecidableInstances #-}
 module Types (
-   AppM
+   App
  , MonadAuth
  , withAuth
- , MonadDb
- , insertUserSession
- , fetchUserSession
- , insertPageView
- , insertEvent
  , HasContext
  , getContext
+ , getPool
+ , runAppInTransaction
 ) where
 
-import           ApiTypes                                 (Event (..),
-                                                           PageView (..),
-                                                           UserSession (..),
-                                                           convertToDb)
-import           Context                                  (Ctx (..))
-import           Control.Monad.Extra                      (ifM)
-import           Control.Monad.IO.Class                   (liftIO)
-import           Control.Monad.Trans.Class                (lift)
-import           Control.Monad.Trans.Except               (throwE)
-import           Control.Monad.Trans.Reader               (ReaderT, ask)
-import qualified Data.Text                                as T
-import qualified Data.UUID.Types                          as UUID (nil)
-import           Database.Beam                            as B
-import           Database.Beam.Backend.SQL.BeamExtensions (runInsertReturningList)
-import qualified Database.Beam.Postgres                   as Pg
-import           Db
+import           Context                    (Ctx (..))
+import           Control.Monad.Catch        hiding (Handler)
+import           Control.Monad.Extra        (ifM)
+import           Control.Monad.IO.Class
+import           Control.Monad.Reader       (MonadReader, ask)
+import           Control.Monad.Trans.Class  (MonadTrans, lift)
+import           Control.Monad.Trans.Reader (ReaderT, runReaderT)
+import qualified Data.Text                  as T
 import           Servant
-import           Servant.Server                           (err403)
+import           Squeal.Orphans             ()
+import           Squeal.PostgreSQL
+import           Squeal.Schema
 
-type AppM ctx = ReaderT ctx Handler
 
-class (Monad m) => MonadAuth m where
+newtype AppT r m a = AppT { unAppT :: ReaderT r m a }
+  deriving newtype
+    ( Functor
+    , Applicative
+    , Monad
+    , MonadReader r
+    , MonadIO
+    , MonadCatch
+    , MonadThrow
+    , MonadMask
+    )
+type App = AppT Ctx (PQ DB DB IO)
+
+instance MonadTrans (AppT r) where
+  lift = AppT . lift
+
+runAppInTransaction :: Ctx -> App a -> IO a
+runAppInTransaction ctx = usingConnectionPool (conn ctx) . runApp ctx
+  where
+    runApp :: Ctx -> App a -> PQ DB DB IO a
+    runApp cfg = flip runReaderT cfg . unAppT
+
+instance (schemas ~ DB, MonadPQ schemas m) => MonadPQ schemas (AppT r m) where
+  executeParams q = lift . executeParams q
+  executePrepared q = lift . executePrepared q
+  executePrepared_ q = lift . executePrepared_ q
+
+class (Monad m, MonadThrow m, MonadReader Ctx m) => MonadAuth m where
   withAuth :: Maybe T.Text -> m a -> m a
 
-instance MonadAuth (AppM Ctx) where
+instance (schemas ~ DB) => MonadAuth (AppT Ctx (PQ schemas schemas IO))  where
   withAuth auth f =
     ifM (isCorrectAuth auth) f
-        (lift $ Handler $ throwE err403)
+        (lift $ throwM $ err403)
     where
-      isCorrectAuth :: Maybe T.Text -> AppM Ctx Bool
+      isCorrectAuth :: HasContext m => Maybe T.Text -> m Bool
       isCorrectAuth auth' = do
-        Ctx{..} <- getContext
+        Ctx{..} <- ask
         pure $ auth' == Just apiKey
 
-class Monad m => HasContext m where
+class HasContext m => HasDbConn m where
+  getPool :: m (Pool (K Connection DB))
+instance (schemas ~ DB) => HasDbConn (AppT Ctx (PQ schemas schemas IO))  where
+  getPool = conn <$> getContext
+
+class (MonadReader Ctx m, Monad m) => HasContext m where
   getContext :: m Ctx
-instance HasContext (AppM Ctx) where
+instance (schemas ~ DB) => HasContext (AppT Ctx (PQ schemas schemas IO))  where
   getContext = ask
-
-class Monad m => MonadDb m where
-  insertUserSession :: Pg.Connection -> m [UserSessionDBT Identity]
-  fetchUserSession :: Pg.Connection -> m UserSession
-  insertPageView :: Pg.Connection -> PageView -> m ()
-  insertEvent :: Pg.Connection -> Event -> m ()
-
-instance MonadDb (AppM Ctx)  where
-  insertUserSession conn = liftIO $ Pg.runBeamPostgresDebug putStrLn conn  $ do
-    insertValue <-
-      runInsertReturningList $ insert (dbUserSession analyticsDb) $ insertExpressions [UserSessionDB B.default_ Pg.now_]
-    pure insertValue
-  fetchUserSession _ = liftIO $ return $ UserSession UUID.nil
-  insertPageView conn pageview = liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
-    insert (dbPageView analyticsDb) $ insertExpressions [convertToDb pageview]
-  insertEvent conn event = liftIO $ Pg.runBeamPostgresDebug putStrLn conn $ runInsert $
-    insert (dbEvents analyticsDb) $ insertExpressions [convertToDb event]
-

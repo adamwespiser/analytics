@@ -7,9 +7,8 @@ module Server (
   , runMain
 ) where
 
-import           Control.Monad.IO.Class                 (liftIO)
-import           Control.Monad.Trans.Reader             (runReaderT)
-import           Data.Maybe                             (fromMaybe)
+import           Control.Monad                          ((<=<))
+import           Control.Monad.IO.Class                 (MonadIO, liftIO)
 import qualified Data.Text                              as T
 import           Network.Wai.Middleware.Cors            (CorsResourcePolicy (..),
                                                          cors,
@@ -39,13 +38,15 @@ import           ApiTypes                               (Event (..),
                                                          UserSession (..))
 import           Context                                (Ctx (..),
                                                          readContextFromEnv)
-import           Db
-import           Types                                  (AppM, getContext,
-                                                         insertEvent,
-                                                         insertPageView,
-                                                         insertUserSession,
+import qualified Squeal.PostgreSQL                      as Sq
+import           Squeal.Query                           (insertEventPq,
+                                                         insertPageViewPq,
+                                                         insertSessionPq)
+import           Squeal.Schema                          (DB)
+import           Types                                  (App, MonadAuth,
+                                                         runAppInTransaction,
                                                          withAuth)
-import qualified Utils                                  (headMay)
+
 data Routes route = Routes
  { event :: route
      :- "event"
@@ -63,53 +64,58 @@ data Routes route = Routes
      :> Get '[JSON] UserSession
  } deriving (Generic)
 
-server :: Routes (AsServerT (AppM Ctx))
+server :: Routes (AsServerT App)
 server = Routes
  { event
  , page
  , session
  }
   where
-    event :: Maybe T.Text -> Event -> AppM Ctx NoContent
+    event ::
+         ( MonadIO m
+         , MonadAuth m
+         , Sq.MonadPQ DB m)
+       => Maybe T.Text -> Event -> m NoContent
     event auth evt@Event{..} =
       withAuth auth $ do
-        Ctx{ conn } <- getContext
-        liftIO $ print evt
-        insertEvent conn evt
+        Sq.executeParams_ insertEventPq evt
         return NoContent
-    page :: Maybe T.Text -> PageView -> AppM Ctx NoContent
+    page ::
+        ( MonadIO m
+        , MonadAuth m
+        , Sq.MonadPQ DB m)
+      => Maybe T.Text -> PageView -> m NoContent
     page auth pageview@PageView{..} =
       withAuth auth $ do
-        Ctx{ conn } <- getContext
-        liftIO $ print pageview
-        insertPageView conn pageview
+        Sq.executeParams_ insertPageViewPq pageview
         return NoContent
-    session :: Maybe T.Text -> AppM Ctx UserSession
+    session ::
+        ( MonadIO m
+        , MonadAuth m
+        , Sq.MonadPQ DB m)
+      => Maybe T.Text -> m UserSession
     session auth =
       withAuth auth $ do
-        Ctx{ conn } <- getContext
-        status <- insertUserSession conn
-        return $ UserSession $ (usersessionId . getSingleResult) status
-    getSingleResult lst =
-        -- TODO code smell: headMay then toss an error?
-        fromMaybe (error $ "storeRun: single item not returned: " ++ show lst )
-            $ Utils.headMay lst
+         Sq.execute insertSessionPq >>= Sq.getRow 0
 
 app :: Ctx -> Application
 app ctx = logStdoutDev $
   cors (const $ Just policy) $
   provideOptions apiProxy $
-  genericServeT (natTrans ctx) server
+  genericServeT toHandler server
   where
-      apiProxy :: Proxy API
-      apiProxy = genericApi (Proxy :: Proxy Routes)
-      policy = simpleCorsResourcePolicy
-                { corsRequestHeaders = [ "content-type" ] }
+    apiProxy :: Proxy API
+    apiProxy = genericApi (Proxy :: Proxy Routes)
+    policy = simpleCorsResourcePolicy
+              { corsRequestHeaders = [ "content-type" ] }
+    toHandler :: App a -> Handler a
+    toHandler =
+      either throwError pure
+      <=< liftIO
+      .   fmap Right
+      .   runAppInTransaction ctx
 
 type API = ToServantApi Routes
-
-natTrans :: ctx -> AppM ctx a -> Handler a
-natTrans ctx x = runReaderT x ctx
 
 runAppWithContext :: Ctx -> IO ()
 runAppWithContext ctx =
@@ -124,4 +130,3 @@ runMain = do
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show (port ctx))) $
         defaultSettings
   runSettings settings (app ctx)
-
