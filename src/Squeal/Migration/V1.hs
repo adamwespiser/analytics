@@ -28,3 +28,5 @@ initMigration = dropTableIfExists #events >>>
     ((default_ (UnsafeExpression "current_timestamp") (notNullable timestamptz) `as` #modtime))
   )
   ( primaryKey #id `as` #pk_user_session )
+
+

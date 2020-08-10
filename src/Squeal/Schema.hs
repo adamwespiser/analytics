@@ -1,7 +1,10 @@
 
 module Squeal.Schema where
 
-import           Squeal.PostgreSQL
+import           Squeal.PostgreSQL ((:::), (:=>), NullType (NotNull),
+                                    Optionality (Def, NoDef), PGType (..),
+                                    Public, SchemumType (Table),
+                                    TableConstraint (PrimaryKey))
 
 type EventsTable =
   '[ "id"              ::: 'Def   :=> 'NotNull 'PGint4

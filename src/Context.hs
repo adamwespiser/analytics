@@ -1,5 +1,6 @@
 module Context (
   Ctx(..)
+  , CtxTest(..)
   , readContextFromEnv
   , readContextFromEnvWithConnStr
 ) where
@@ -7,10 +8,12 @@ module Context (
 import qualified Data.ByteString.Char8 as BSC
 import           Data.Maybe            (fromMaybe)
 import qualified Data.Text             as T
-import           Squeal.PostgreSQL
+import           Squeal.PostgreSQL     (Connection, K, Pool,
+                                        createConnectionPool)
 import           Squeal.Schema         (DB)
 import           System.Environment    (getEnv)
 import           Text.Read             (readMaybe)
+import qualified Database.PostgreSQL.Simple as PG
 
 data Ctx = Ctx {
   conn          :: Pool (K Connection DB),
@@ -32,12 +35,18 @@ readContextFromEnv =
     (T.pack <$> getEnv "CORS_ORIGIN") <*>
     (BSC.pack <$> getEnv "DBCONN")
 
-readContextFromEnvWithConnStr :: T.Text -> IO Ctx
+data CtxTest = CtxTest {
+  connT          :: PG.Connection,
+  portT          :: Int,
+  apiKeyT        :: T.Text,
+  connStrT       :: BSC.ByteString --for migration
+}
+
+readContextFromEnvWithConnStr :: T.Text -> IO CtxTest
 readContextFromEnvWithConnStr conn =
   let connStr = BSC.pack $ T.unpack conn
-  in Ctx <$>
-      (defaultMakePool connStr) <*>
+  in CtxTest <$>
+      PG.connectPostgreSQL connStr <*>
       (fromMaybe (error "Env var PORT must be set") . readMaybe <$> getEnv "PORT") <*>
       (T.pack <$> getEnv "API_KEY") <*>
-      (T.pack <$> getEnv "CORS_ORIGIN") <*>
       (BSC.pack <$> getEnv "DBCONN")

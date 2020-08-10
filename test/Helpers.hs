@@ -2,32 +2,29 @@
 
 module Helpers (withDB) where
 
-import qualified Data.ByteString.Char8                as BSC
-import           Data.Maybe                           (fromMaybe)
-import           Data.String.Conversions              (cs)
-import qualified Database.Beam.Postgres               as Pg
-import           Database.Postgres.Temp               (DB (..), defaultOptions)
-import qualified Database.Postgres.Temp               as PG
+import qualified Data.ByteString.Char8              as BSC
+import           Data.String.Conversions            (cs)
+import           Database.Postgres.Temp             (DB (..), defaultOptions)
+import qualified Database.Postgres.Temp             as PG
 import           Protolude
 
-import           Context                              (Ctx (..), readContextFromEnvWithConnStr)
-import qualified Control.Concurrent                   as C
-import qualified Data.Text                            as T
-import           Database.PostgreSQL.Simple           (Query, execute_,
-                                                       withTransaction)
-import           Database.PostgreSQL.Simple.Migration (MigrationCommand (..),
-                                                       MigrationContext (..),
-                                                       MigrationResult (..),
-                                                       runMigration)
-import           Database.PostgreSQL.Simple.Options   (Options (..))
-import           Database.PostgreSQL.Simple.Types     (Query (..))
-import qualified Network.Wai.Handler.Warp             as Warp
-import           Server                               (app)
-import           System.Environment                   (getEnv)
-import           System.IO                            (BufferMode (..),
-                                                       IOMode (WriteMode),
-                                                       hSetBuffering, openFile,
-                                                       stderr, stdout)
+import           Context                            (Ctx (..), CtxTest (..),
+                                                     readContextFromEnv,
+                                                     readContextFromEnvWithConnStr)
+import qualified Control.Concurrent                 as C
+import qualified Data.Text                          as T
+import           Database.PostgreSQL.Simple         (Connection, Query,
+                                                     connectPostgreSQL,
+                                                     execute_)
+import           Database.PostgreSQL.Simple.Options (Options (..))
+import           Database.PostgreSQL.Simple.Types   (Query (..))
+import qualified Network.Wai.Handler.Warp           as Warp
+import           Server                             (app)
+import           Squeal.Migration.V1
+import           Squeal.PostgreSQL                  (renderSQL)
+import           System.Environment                 (getEnv)
+import           System.IO                          (BufferMode (..),
+                                                     hSetBuffering)
 import           Test.Hspec
 --- Setup and teardown helpers
 ---
@@ -38,29 +35,30 @@ data DBLogging = VERBOSE | SILENT deriving Read
 
 data TestType = Local | Travis deriving Read
 
-withDB :: SpecWith (IO (), Ctx) -> Spec
+withDB :: SpecWith (IO (), CtxTest) -> Spec
 withDB = beforeAll getDbAndWarpServer
            . afterAll fst
            . afterAll (truncateDb . snd)
  where
-  getDbAndWarpServer :: IO (IO (), Ctx)
+  getDbAndWarpServer :: IO (IO (), CtxTest)
   getDbAndWarpServer = do
     (_, config) <- getDatabase
-    _ <- C.forkIO $ runWarpServer config
+    ctx <- readContextFromEnv
+    _ <- C.forkIO $ runWarpServer ctx
     -- Wait 2 seconds for the warp server to boot
     C.threadDelay 2000000
     pure (pure (), config)
 
-  getDatabase :: IO (IO (), Ctx)
+  getDatabase :: IO (IO (), CtxTest)
   getDatabase = read @TestType <$> (getEnv "TEST_TYPE") >>= \case
     Local -> createTmpDatabase
     Travis -> do -- "TRAVIS"
       let connStr = "postgresql://postgres@localhost/travis_ci_test"
       config <- readContextFromEnvWithConnStr $ T.pack connStr
-      migrateDB $ conn config
+      migrateDB $ connT config
       pure (pure (), config)
 
-  createTmpDatabase :: IO (IO (), Ctx)
+  createTmpDatabase :: IO (IO (), CtxTest)
   createTmpDatabase = do
     verbosity <- read @DBLogging <$> getEnv "DBLOGGING"
     (db, cleanup) <- startDb verbosity
@@ -69,8 +67,8 @@ withDB = beforeAll getDbAndWarpServer
     return (cleanup, config)
 
   -- https://stackoverflow.com/questions/5342440/reset-auto-increment-counter-in-postgres
-  truncateDb :: Ctx -> IO ()
-  truncateDb config = execute_ (conn config) query_statment >> pure ()
+  truncateDb :: CtxTest -> IO ()
+  truncateDb config = execute_ (connT config) query_statment >> pure ()
    where
     query_statment =  Query $ BSC.pack $ T.unpack truncateStatement :: Query
     truncateStatement =
@@ -92,15 +90,19 @@ withDB = beforeAll getDbAndWarpServer
     db <- PG.startWithHandles PG.Localhost defaultOptions outHandle errHandle
             >>= either throwIO pure
     pguser <- getEnv "PGUSER"
-    conn <- Pg.connectPostgreSQL $ BSC.pack $ T.unpack $ toConnectionString pguser db
+    conn <- connectPostgreSQL $ BSC.pack $ T.unpack $ toConnectionString pguser db
     restore (migrateDB conn >> pure (db, cleanup db))
       `onException` cleanup db
    where
     devNull = openFile "/dev/null" WriteMode
     cleanup = void . PG.stop
 
-  migrateDB :: Pg.Connection -> IO ()
-  migrateDB  con = do
+  migrateDB :: Connection -> IO ()
+  migrateDB  con =
+    let migrationSql = Query $ renderSQL initMigration
+     in void $ execute_ con migrationSql
+
+    {-
     let migrationDir = MigrationDirectory "db/migrations"
     initResult <- withTransaction con $ runMigration $
       MigrationContext MigrationInitialization False con
@@ -112,6 +114,7 @@ withDB = beforeAll getDbAndWarpServer
         migrationResult <- withTransaction con $ runMigration $
           MigrationContext migrationDir True con
         Prelude.print migrationResult
+     -}
 
   runWarpServer :: Ctx -> IO ()
   runWarpServer ctx = do

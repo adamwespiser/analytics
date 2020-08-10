@@ -9,23 +9,17 @@ module Types (
  , runAppInTransaction
 ) where
 
-import           ApiTypes                   (Event (..), PageView (..),
-                                             UserSession (..))
 import           Context                    (Ctx (..))
 import           Control.Monad.Catch        hiding (Handler)
 import           Control.Monad.Extra        (ifM)
-import           Control.Monad.IO.Class     (liftIO)
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader       (MonadReader, ask)
 import           Control.Monad.Trans.Class  (MonadTrans, lift)
-import           Control.Monad.Trans.Except (throwE)
 import           Control.Monad.Trans.Reader (ReaderT, runReaderT)
 import qualified Data.Text                  as T
-import qualified Data.UUID.Types            as UUID (UUID)
 import           Servant
 import           Squeal.Orphans             ()
 import           Squeal.PostgreSQL
-import           Squeal.Schema              (DB)
 import           Squeal.Schema
 
 
@@ -40,7 +34,6 @@ newtype AppT r m a = AppT { unAppT :: ReaderT r m a }
     , MonadThrow
     , MonadMask
     )
-type AppT' = AppT Ctx
 type App = AppT Ctx (PQ DB DB IO)
 
 instance MonadTrans (AppT r) where

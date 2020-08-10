@@ -1,6 +1,5 @@
-import           Context                              (Ctx (..),conn, readContextFromEnv)
+import           Context                              (connStr, readContextFromEnv)
 import Squeal.PostgreSQL
-import Squeal.Schema
 import Squeal.Migration.V1 (initMigration)
 
 {-
@@ -9,6 +8,5 @@ import Squeal.Migration.V1 (initMigration)
 main :: IO ()
 main = do
   ctx <- readContextFromEnv
-  let con = conn ctx
   withConnection (connStr ctx) $
     define initMigration

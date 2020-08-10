@@ -1,9 +1,11 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Squeal.Orphans where
 
 import           Control.Monad.Catch       (MonadCatch (..), MonadMask (..),
                                             MonadThrow (..))
 import           Control.Monad.Trans.Class (lift)
-import           Squeal.PostgreSQL
+import           Squeal.PostgreSQL         (K (..), PQ (..), unK)
 
 
 instance (MonadThrow m, db0 ~ db1)

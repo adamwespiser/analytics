@@ -1,8 +1,13 @@
 module Squeal.Query where
 
-import           ApiTypes
-import           Squeal.PostgreSQL
-import           Squeal.Schema
+import           ApiTypes          (Event, PageView, UserSession)
+import           Squeal.PostgreSQL (ConflictClause (OnConflictDoRaise),
+                                    NP ((:*)), Optional (Default, Set),
+                                    pattern Returning_,
+                                    Statement (Manipulation), pattern Values_,
+                                    as, genericRow, insertInto, insertInto_,
+                                    manipulation, nilParams, param)
+import           Squeal.Schema     (DB)
 
 insertEventPq :: Statement DB Event ()
 insertEventPq = manipulation $ insertInto_ #events $ Values_ $

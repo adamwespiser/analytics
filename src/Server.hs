@@ -7,9 +7,8 @@ module Server (
   , runMain
 ) where
 
+import           Control.Monad                          ((<=<))
 import           Control.Monad.IO.Class                 (MonadIO, liftIO)
-import           Control.Monad.Trans.Reader             (runReaderT)
-import           Data.Maybe                             (fromMaybe)
 import qualified Data.Text                              as T
 import           Network.Wai.Middleware.Cors            (CorsResourcePolicy (..),
                                                          cors,
@@ -39,18 +38,14 @@ import           ApiTypes                               (Event (..),
                                                          UserSession (..))
 import           Context                                (Ctx (..),
                                                          readContextFromEnv)
-import           Control.Monad                          ((<=<))
-import qualified Data.UUID.Types                        as UUID (nil)
 import qualified Squeal.PostgreSQL                      as Sq
 import           Squeal.Query                           (insertEventPq,
                                                          insertPageViewPq,
                                                          insertSessionPq)
 import           Squeal.Schema                          (DB)
-import           Types                                  (App, HasContext,
-                                                         MonadAuth, getContext,
+import           Types                                  (App, MonadAuth,
                                                          runAppInTransaction,
                                                          withAuth)
-import qualified Utils                                  (headMay)
 
 data Routes route = Routes
  { event :: route
@@ -77,41 +72,31 @@ server = Routes
  }
   where
     event ::
-         ( Monad m
-         , MonadIO m
-         , HasContext m
+         ( MonadIO m
          , MonadAuth m
          , Sq.MonadPQ DB m)
        => Maybe T.Text -> Event -> m NoContent
     event auth evt@Event{..} =
       withAuth auth $ do
-        Ctx{ conn } <- getContext
-        Sq.executeParams insertEventPq evt
+        Sq.executeParams_ insertEventPq evt
         return NoContent
     page ::
-        ( Monad m
-        , MonadIO m
-        , HasContext m
+        ( MonadIO m
         , MonadAuth m
         , Sq.MonadPQ DB m)
       => Maybe T.Text -> PageView -> m NoContent
     page auth pageview@PageView{..} =
       withAuth auth $ do
-        Ctx{ conn } <- getContext
-        Sq.executeParams insertPageViewPq pageview
+        Sq.executeParams_ insertPageViewPq pageview
         return NoContent
     session ::
-        ( Monad m
-        , MonadIO m
-        , HasContext m
+        ( MonadIO m
         , MonadAuth m
         , Sq.MonadPQ DB m)
       => Maybe T.Text -> m UserSession
     session auth =
       withAuth auth $ do
-        Ctx{ conn } <- getContext
-        Sq.execute insertSessionPq
-        return $ UserSession UUID.nil
+         Sq.execute insertSessionPq >>= Sq.getRow 0
 
 app :: Ctx -> Application
 app ctx = logStdoutDev $
